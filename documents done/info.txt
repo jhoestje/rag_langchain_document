@@ -1,0 +1,10 @@
+Plan ID: KEY24
+Plan type: HEALTH FSA
+Plan year start date: 01/01/2024
+Plan year end date: 12/31/2024
+Final date to submit claims: 03/31/2025
+Status: Active	Election amount: $2,150.00
+Available funds: $725.64
+Amount contributed: $2,150.00
+Total of claims submitted: $1,876.55
+Total of claims paid: $1,424.36
