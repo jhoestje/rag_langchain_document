@@ -60,23 +60,22 @@ loader = DirectoryLoader(r'C:\workspace\rag\langchain\poc\documents', glob='**/*
 documents = loader.load()
 
 if not documents:
-    logger.error("No documents found in the specified directory")
-    raise ValueError("No documents found to process")
-
-logger.info(f"Found {len(documents)} documents to process")
+    logger.warning("No documents found in the specified directory")
+    documents = []
+else:
+    logger.info(f"Found {len(documents)} documents to process")
 
 # Split documents into chunks
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
     chunk_overlap=200
 )
-docs = text_splitter.split_documents(documents)
+docs = text_splitter.split_documents(documents) if documents else []
 
 if not docs:
-    logger.error("No document chunks created after splitting")
-    raise ValueError("Document splitting resulted in no chunks")
-
-logger.info(f"Created {len(docs)} document chunks")
+    logger.warning("No document chunks available for processing")
+else:
+    logger.info(f"Created {len(docs)} document chunks")
 
 # Initialize embeddings
 embeddings = OllamaEmbeddings(model=MODEL)
@@ -91,6 +90,8 @@ vectorstore = Chroma(
 if docs:
     vectorstore.add_documents(docs)
     logger.info(f"Successfully added {len(docs)} document chunks to vector store")
+else:
+    logger.warning("No documents to add to vector store")
 
 # Create a logging wrapper for the retriever
 class LoggingRetriever(BaseRetriever):
