@@ -37,3 +37,10 @@ ENV/
 
 # MongoDB
 data/
+
+# Chroma
+chroma_db/
+
+# Documents
+documents/
+documents done/
