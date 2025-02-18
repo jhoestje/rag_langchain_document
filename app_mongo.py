@@ -1,7 +1,8 @@
+from pymongo import MongoClient
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
-from langchain_chroma import Chroma
+from langchain_mongodb import MongoDBAtlasVectorSearch
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 import logging
@@ -14,8 +15,14 @@ from langchain.schema import Document
 
 MODEL = 'llama3.2'
 
-# Configure Chroma
-PERSIST_DIRECTORY = "./chroma_db"
+# For local MongoDB
+#client = MongoClient('mongodb://localhost:27017/')
+
+# For MongoDB Atlas (replace placeholders with your credentials)
+client = MongoClient("mongodb+srv://....")
+
+db = client['langchain_db']
+collection = db['embeddings']
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -55,42 +62,63 @@ class OllamaRequestLoggingHandler(BaseCallbackHandler):
             logger.info(f"Document {i + 1} Content:\n{doc.page_content}")
             logger.info(f"Document {i + 1} Metadata:\n{doc.metadata}\n{'='*50}")
 
+# Create vector search index if it doesn't exist
+# try:
+#     # Check if index exists
+#     existing_indexes = collection.list_indexes()
+#     index_exists = any(index.get('name') == 'vector_index' for index in existing_indexes)
+    
+#     if not index_exists:
+#         # Create the vector search index
+#         search_index_model = SearchIndexModel(
+#   definition = {
+#     "fields": [
+#       {
+#         "type": "vector",
+#         "numDimensions": 1536,
+#         "path": "embedding",
+#         "similarity": "cosine"
+#       }
+#     ]
+#   }
+# )
+
+#         collection.create_search_index(search_index_model, name="vector_index")
+#         print("Vector search index created successfully")
+# except Exception as e:
+#     print(f"Error creating index: {e}")
+
 # Replace 'path/to/your/documents' with the actual path
 loader = DirectoryLoader(r'C:\workspace\rag\langchain\poc\documents', glob='**/*.txt', loader_cls=TextLoader)
 documents = loader.load()
 
-if not documents:
-    logger.error("No documents found in the specified directory")
-    raise ValueError("No documents found to process")
-
-logger.info(f"Found {len(documents)} documents to process")
-
-# Split documents into chunks
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=200
-)
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
 docs = text_splitter.split_documents(documents)
 
-if not docs:
-    logger.error("No document chunks created after splitting")
-    raise ValueError("Document splitting resulted in no chunks")
+embeddings = OllamaEmbeddings(model='llama3.2')
 
-logger.info(f"Created {len(docs)} document chunks")
+for doc in docs:
+    logger.info(f"Embedding page content:\n{doc.page_content}")
 
-# Initialize embeddings
-embeddings = OllamaEmbeddings(model=MODEL)
+embedding_vectors = embeddings.embed_documents([doc.page_content for doc in docs])
 
-# Initialize Chroma with embeddings
-vectorstore = Chroma(
-    persist_directory=PERSIST_DIRECTORY,
-    embedding_function=embeddings
+#don't keep embedding the same text
+#store in MongoDB
+for doc, vector in zip(docs, embedding_vectors):
+    collection.insert_one({
+        'content': doc.page_content,  # Store the actual text content
+        'embedding': vector,          # Store the embedding vector
+        'metadata': doc.metadata      # Store any metadata
+    })
+
+# Initialize vector store with the correct index name and content key
+vectorstore = MongoDBAtlasVectorSearch(
+    collection,
+    embeddings,
+    index_name="vector_index",
+    text_key="content",      # Specify which field contains the text content
+    embedding_key="embedding" # Specify which field contains the embedding vector
 )
-
-# Add documents to the vector store
-if docs:
-    vectorstore.add_documents(docs)
-    logger.info(f"Successfully added {len(docs)} document chunks to vector store")
 
 # Create a logging wrapper for the retriever
 class LoggingRetriever(BaseRetriever):
