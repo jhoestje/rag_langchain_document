@@ -106,6 +106,12 @@ Do not ask follow-up questions."""),
         logger.info("\n=== Entering call_model ===")
         messages = state["messages"]
         
+        # Check if we've already used the tool and got a response
+        if any(isinstance(msg, FunctionMessage) for msg in state["messages"]):
+            logger.info("Tool has been used, ending conversation")
+            state["next"] = END
+            return state
+        
         # Get the last human message for input
         last_human_msg = next((msg for msg in reversed(messages) 
                              if isinstance(msg, HumanMessage)), None)
@@ -132,7 +138,7 @@ Do not ask follow-up questions."""),
         state["messages"].append(AIMessage(content=model_response))
         
         # Check if we need to call a tool
-        if "StockData" in model_response:
+        if "StockData(" in model_response:
             logger.info("Tool call detected in response, transitioning to call_tool")
             state["next"] = "call_tool"
         else:
@@ -151,7 +157,7 @@ Do not ask follow-up questions."""),
         logger.info(f"Processing message: {last_message}")
         
         # Extract tool call from message
-        if "StockData" in last_message:
+        if "StockData(" in last_message:
             logger.info("Found StockData call")
             # Extract symbol from StockData(SYMBOL)
             start = last_message.find("StockData(") + len("StockData(")
