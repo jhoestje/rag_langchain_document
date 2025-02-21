@@ -131,11 +131,15 @@ def create_stock_agent():
             end = last_message.find(")", start)
             symbol = last_message[start:end].strip()
             
-            # Call tool
-            result = tool_node.invoke({
+            # Create tool message
+            tool_message = {
+                "messages": [{"content": f"StockData({symbol})", "type": "tool"}],
                 "name": "StockData",
                 "input": symbol
-            })
+            }
+            
+            # Call tool
+            result = tool_node.invoke(tool_message)
             
             # Add result to messages
             state["messages"].append(AIMessage(content=f"Tool response: {result}"))
