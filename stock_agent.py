@@ -1,14 +1,14 @@
 import os
 from typing import List, Any, Union, Dict, TypedDict, Annotated, Sequence
-from langchain.prompts import StringPromptTemplate
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_ollama import OllamaLLM
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, FunctionMessage
 import requests
 from dotenv import load_dotenv
 import logging
 from typing import ClassVar
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode
+from langgraph.prebuilt import ToolInvocation
 from langchain_core.tools import BaseTool
 
 # Configure logging
@@ -45,34 +45,10 @@ class StockDataTool(BaseTool):
         Volume: {quote.get('06. volume', 'N/A')}
         """
 
-    def _arun(self, symbol: str) -> str:
-        """Async version - just calls sync version for now"""
-        return self._run(symbol)
-
-# Create our state type
+# Define our state
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], "The messages in the conversation"]
     next: str
-
-# Define the prompt template
-AGENT_PROMPT = """You are a stock market expert assistant. Your task is to help users get stock market data.
-
-Available tools:
-{tools}
-
-IMPORTANT INSTRUCTIONS:
-1. When you need stock data, use EXACTLY this format: StockData(SYMBOL)
-   Example: StockData(AAPL)
-
-2. When you receive stock data, summarize it clearly and end the conversation.
-
-3. DO NOT ask follow-up questions or make additional tool calls.
-
-Current conversation:
-{messages}
-
-Question: {input}
-Assistant: Let me help you with that stock information."""
 
 def create_stock_agent():
     # Initialize tools
@@ -84,38 +60,59 @@ def create_stock_agent():
         temperature=0
     )
     
-    # Create tool node
-    tool_node = ToolNode(tools=tools)
+    # Create the prompt template
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a stock market expert assistant. Your task is to help users get stock market data.
+
+When you need stock data, use the StockData tool with the stock symbol.
+After getting the data, provide a clear summary and end the conversation.
+Do not ask follow-up questions."""),
+        MessagesPlaceholder(variable_name="messages"),
+        ("human", "{input}")
+    ])
     
     # Function to determine if we should continue processing
     def should_continue(state: AgentState) -> bool:
         """Return True if we should continue processing."""
-        last_message = state["messages"][-1].content
-        # Only continue if we see a tool call and haven't already used the tool
-        return "StockData(" in last_message and not any("Tool response:" in msg.content for msg in state["messages"])
+        if not state["messages"]:
+            return False
+        
+        last_message = state["messages"][-1]
+        # Stop if we've already used the tool and got a response
+        if any(isinstance(msg, FunctionMessage) for msg in state["messages"]):
+            return False
+        return True
     
     # Function to call the model
     def call_model(state: AgentState) -> AgentState:
         """Call the model to get the next action."""
         messages = state["messages"]
-        tools_str = "\n".join([f"{tool.name}: {tool.description}" for tool in tools])
         
-        # Format prompt with tools and messages
-        prompt = AGENT_PROMPT.format(
-            tools=tools_str,
-            messages="\n".join(str(m.content) for m in messages),
-            input=messages[-1].content if messages else ""
+        # Get the last human message for input
+        last_human_msg = next((msg for msg in reversed(messages) 
+                             if isinstance(msg, HumanMessage)), None)
+        
+        if not last_human_msg:
+            state["next"] = END
+            return state
+            
+        # Format prompt
+        model_response = llm.invoke(
+            prompt.format_messages(
+                messages=messages,
+                input=last_human_msg.content
+            )
         )
         
-        # Get model response
-        response = llm.invoke(prompt)
-        
         # Add AI message to state
-        state["messages"].append(AIMessage(content=response))
+        state["messages"].append(AIMessage(content=model_response))
         
-        # Determine next step
-        state["next"] = "call_tool" if should_continue(state) else END
-        
+        # Check if we need to call a tool
+        if "StockData" in model_response:
+            state["next"] = "call_tool"
+        else:
+            state["next"] = END
+            
         return state
     
     # Function to call tool
@@ -123,27 +120,29 @@ def create_stock_agent():
         """Call the appropriate tool."""
         last_message = state["messages"][-1].content
         
-        # Extract tool call from message
-        if "StockData(" in last_message:
-            # Extract symbol from StockData(SYMBOL)
+        # Extract symbol from StockData(SYMBOL)
+        if "StockData" in last_message:
             start = last_message.find("StockData(") + len("StockData(")
             end = last_message.find(")", start)
             symbol = last_message[start:end].strip()
             
-            # Call tool directly
-            result = tools[0]._run(symbol)
+            # Call tool
+            tool = tools[0]
+            result = tool._run(symbol)
             
             # Add result to messages
-            state["messages"].append(AIMessage(content=f"Tool response: {result}"))
+            state["messages"].append(FunctionMessage(
+                content=result,
+                name="StockData"
+            ))
             
-            # Always go back to the model after tool use
+            # Go back to model for final response
             state["next"] = "call_model"
         else:
-            # If no tool call found, end the conversation
             state["next"] = END
             
         return state
-
+    
     # Create the graph
     workflow = StateGraph(AgentState)
     
@@ -183,5 +182,10 @@ if __name__ == "__main__":
     # Print the conversation
     print("\nConversation:")
     for message in result["messages"]:
-        role = "Human" if isinstance(message, HumanMessage) else "Assistant"
-        print(f"{role}: {message.content}\n")
+        if isinstance(message, HumanMessage):
+            print(f"Human: {message.content}")
+        elif isinstance(message, AIMessage):
+            print(f"Assistant: {message.content}")
+        elif isinstance(message, FunctionMessage):
+            print(f"Function ({message.name}): {message.content}")
+        print()
