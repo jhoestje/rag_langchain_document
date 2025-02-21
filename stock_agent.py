@@ -133,7 +133,7 @@ def create_stock_agent():
             
             # Create tool message
             tool_message = {
-                "messages": [{"content": f"StockData({symbol})", "type": "tool"}],
+                "messages": [AIMessage(content=f"StockData({symbol})")],
                 "name": "StockData",
                 "input": symbol
             }
