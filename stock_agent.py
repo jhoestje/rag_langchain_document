@@ -55,20 +55,18 @@ class AgentState(TypedDict):
     next: str
 
 # Define the prompt template
-AGENT_PROMPT = """You are a stock market expert assistant. Your task is to help users get stock market data using the available tools.
+AGENT_PROMPT = """You are a stock market expert assistant. Your task is to help users get stock market data.
 
 Available tools:
 {tools}
 
 IMPORTANT INSTRUCTIONS:
-1. To get stock data, you MUST use the exact format: StockData(SYMBOL)
+1. When you need stock data, use EXACTLY this format: StockData(SYMBOL)
    Example: StockData(AAPL)
 
-2. After getting the data, you MUST provide a clear summary of the stock information.
+2. When you receive stock data, summarize it clearly and end the conversation.
 
-Remember:
-- Always use the tool to get data before providing information
-- Be precise and professional in your responses
+3. DO NOT ask follow-up questions or make additional tool calls.
 
 Current conversation:
 {messages}
@@ -93,7 +91,8 @@ def create_stock_agent():
     def should_continue(state: AgentState) -> bool:
         """Return True if we should continue processing."""
         last_message = state["messages"][-1].content
-        return "StockData" in last_message
+        # Only continue if we see a tool call and haven't already used the tool
+        return "StockData(" in last_message and not any("Tool response:" in msg.content for msg in state["messages"])
     
     # Function to call the model
     def call_model(state: AgentState) -> AgentState:
@@ -125,29 +124,26 @@ def create_stock_agent():
         last_message = state["messages"][-1].content
         
         # Extract tool call from message
-        if "StockData" in last_message:
+        if "StockData(" in last_message:
             # Extract symbol from StockData(SYMBOL)
             start = last_message.find("StockData(") + len("StockData(")
             end = last_message.find(")", start)
             symbol = last_message[start:end].strip()
             
-            # Create tool message
-            tool_message = {
-                "messages": [AIMessage(content=f"StockData({symbol})")],
-                "name": "StockData",
-                "input": symbol
-            }
-            
-            # Call tool
-            result = tool_node.invoke(tool_message)
+            # Call tool directly
+            result = tools[0]._run(symbol)
             
             # Add result to messages
             state["messages"].append(AIMessage(content=f"Tool response: {result}"))
             
-        # Always go back to the model after tool use
-        state["next"] = "call_model"
+            # Always go back to the model after tool use
+            state["next"] = "call_model"
+        else:
+            # If no tool call found, end the conversation
+            state["next"] = END
+            
         return state
-    
+
     # Create the graph
     workflow = StateGraph(AgentState)
     
