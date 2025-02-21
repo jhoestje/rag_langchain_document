@@ -6,6 +6,7 @@ from langchain_mongodb import MongoDBAtlasVectorSearch
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 import logging
+import os
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.retrievers import BaseRetriever
 from typing import Any
@@ -19,7 +20,11 @@ MODEL = 'llama3.2'
 #client = MongoClient('mongodb://localhost:27017/')
 
 # For MongoDB Atlas (replace placeholders with your credentials)
-client = MongoClient("mongodb+srv://....")
+MONGODB_ATLAS_URI = os.getenv('MONGODB_ATLAS_URI')
+if not MONGODB_ATLAS_URI:
+    raise ValueError("Please set the MONGODB_ATLAS_URI environment variable")
+
+client = MongoClient(MONGODB_ATLAS_URI)
 
 db = client['langchain_db']
 collection = db['embeddings']
