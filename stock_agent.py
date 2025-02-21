@@ -80,17 +80,10 @@ def create_stock_agent():
     # Initialize tools
     tools = [StockDataTool()]
     
-    # Initialize callback handlers
-    callbacks = [
-        PromptLoggingHandler(),
-        OllamaRequestLoggingHandler()
-    ]
-    
     # Initialize Ollama LLM
     llm = OllamaLLM(
         model=MODEL,
-        temperature=0,
-        callbacks=callbacks
+        temperature=0
     )
     
     # Create tool executor
