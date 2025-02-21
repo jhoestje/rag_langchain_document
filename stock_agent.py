@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import logging
 from typing import ClassVar
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolExecutor
+from langgraph.prebuilt import ToolNode
 from langchain_core.tools import BaseTool
 
 # Configure logging
@@ -86,8 +86,8 @@ def create_stock_agent():
         temperature=0
     )
     
-    # Create tool executor
-    tool_executor = ToolExecutor(tools)
+    # Create tool node
+    tool_node = ToolNode(tools=tools)
     
     # Function to determine if we should continue processing
     def should_continue(state: AgentState) -> bool:
@@ -132,9 +132,9 @@ def create_stock_agent():
             symbol = last_message[start:end].strip()
             
             # Call tool
-            result = tool_executor.invoke({
-                "tool": "StockData",
-                "tool_input": symbol
+            result = tool_node.invoke({
+                "name": "StockData",
+                "input": symbol
             })
             
             # Add result to messages
