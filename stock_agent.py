@@ -29,20 +29,38 @@ class StockDataTool(BaseTool):
 
     def _run(self, symbol: str) -> str:
         """Get stock data from Alpha Vantage API"""
+        logger.info(f"Making API request for symbol: {symbol}")
         url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={ALPHA_VANTAGE_API_KEY}"
-        response = requests.get(url)
-        data = response.json()
+        logger.info(f"Using API key: {ALPHA_VANTAGE_API_KEY[:4]}...")  # Log first 4 chars of API key for debugging
         
-        if "Global Quote" not in data:
-            return f"Error: Could not fetch data for symbol {symbol}"
+        try:
+            response = requests.get(url)
+            logger.info(f"API Response status code: {response.status_code}")
+            logger.info(f"API Response content: {response.text[:200]}...")  # Log first 200 chars of response
             
-        quote = data["Global Quote"]
-        return f"""
-        Stock: {symbol}
-        Price: ${quote.get('05. price', 'N/A')}
-        Change: {quote.get('09. change', 'N/A')} ({quote.get('10. change percent', 'N/A')})
-        Volume: {quote.get('06. volume', 'N/A')}
-        """
+            data = response.json()
+            
+            if "Error Message" in data:
+                logger.error(f"API Error: {data['Error Message']}")
+                return f"Error: {data['Error Message']}"
+                
+            if "Global Quote" not in data:
+                logger.error(f"Unexpected API response format: {data}")
+                return f"Error: Could not fetch data for symbol {symbol}. Response: {str(data)}"
+                
+            quote = data["Global Quote"]
+            result = f"""
+            Stock: {symbol}
+            Price: ${quote.get('05. price', 'N/A')}
+            Change: {quote.get('09. change', 'N/A')} ({quote.get('10. change percent', 'N/A')})
+            Volume: {quote.get('06. volume', 'N/A')}
+            """
+            logger.info(f"Successfully fetched data for {symbol}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Exception during API call: {str(e)}")
+            return f"Error: Exception while fetching data for symbol {symbol}: {str(e)}"
 
 # Define our state
 class AgentState(TypedDict):
