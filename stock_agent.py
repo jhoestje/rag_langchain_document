@@ -1,14 +1,16 @@
 import os
-from typing import List, Any
+from typing import List, Any, Union
 from langchain.agents import Tool, AgentExecutor, LLMSingleActionAgent
 from langchain.prompts import StringPromptTemplate
 from langchain_ollama import OllamaLLM
-from langchain import LLMChain
+from langchain.chains.llm import LLMChain
 from langchain.schema import AgentAction, AgentFinish
 from langchain_core.callbacks import BaseCallbackHandler
+from langchain.agents.agent import AgentOutputParser
 import requests
 from dotenv import load_dotenv
 import logging
+from typing import ClassVar
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -21,7 +23,7 @@ load_dotenv()
 ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
 
 # Model configuration
-MODEL = 'llama2'  # or 'llama3.2' if you have it available
+MODEL = 'llama3.2'  # using the same model as in app.py
 
 class StockDataTool(Tool):
     def __init__(self):
@@ -33,7 +35,7 @@ class StockDataTool(Tool):
 
     def _get_stock_data(self, symbol: str) -> str:
         """Get stock data from Alpha Vantage API"""
-        url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={ALPHA_VANTAGE_API_KEY}"
+        url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={symbol}&apikey={ALPHA_VANTAGE_API_KEY}"
         response = requests.get(url)
         data = response.json()
         
@@ -49,11 +51,28 @@ class StockDataTool(Tool):
         """
 
 class StockPromptTemplate(StringPromptTemplate):
-    template = """You are a stock market expert assistant. Use the following tools to help answer questions about stocks:
+    template: ClassVar[str] = """You are a stock market expert assistant. Your task is to help users get stock market data using the available tools.
 
+Available tools:
 {tools}
 
+IMPORTANT INSTRUCTIONS:
+1. To get stock data, you MUST use the exact format: StockData(SYMBOL)
+   Example: StockData(AAPL)
+
+2. After getting the data, you MUST respond with:
+   Final Answer: [Your detailed response based on the data]
+
+3. If you cannot help, respond with:
+   Final Answer: I cannot help with that request.
+
+Remember:
+- Always use the tool first to get data
+- Always format your final response with "Final Answer:"
+- Be precise and follow the format exactly
+
 Question: {input}
+Thought: Let me help you with that stock information.
 {agent_scratchpad}"""
 
     def format(self, **kwargs) -> str:
@@ -95,6 +114,31 @@ class OllamaRequestLoggingHandler(BaseCallbackHandler):
     def on_tool_error(self, error: str, **kwargs):
         logger.error(f"Tool Error:\n{error}\n{'='*50}")
 
+class StockAgentOutputParser(AgentOutputParser):
+    def parse(self, text: str) -> Union[AgentAction, AgentFinish]:
+        if "Final Answer:" in text:
+            return AgentFinish(
+                return_values={"output": text.split("Final Answer:")[-1].strip()},
+                log=text,
+            )
+        
+        # Parse out the action and input
+        action_match = text.strip().split("\n")[0]
+        if "StockData" not in action_match:
+            return AgentFinish(
+                return_values={"output": "I cannot help with that request."},
+                log=text,
+            )
+            
+        action = "StockData"
+        action_input = action_match.split("StockData")[-1].strip()
+        
+        return AgentAction(tool=action, tool_input=action_input.strip("()"), log=text)
+
+    @property
+    def _type(self) -> str:
+        return "stock_agent"
+
 def create_stock_agent():
     # Initialize tools
     tools = [StockDataTool()]
@@ -114,38 +158,16 @@ def create_stock_agent():
     
     # Initialize prompt
     prompt = StockPromptTemplate(
-        template=StockPromptTemplate.template,
         input_variables=["input", "tools", "agent_scratchpad"]
     )
     
     # Initialize LLM chain
     llm_chain = LLMChain(llm=llm, prompt=prompt)
-    
-    # Define output parser
-    def output_parser(llm_output: str) -> AgentAction or AgentFinish:
-        if "Final Answer:" in llm_output:
-            return AgentFinish(
-                return_values={"output": llm_output.split("Final Answer:")[-1].strip()},
-                log=llm_output,
-            )
-        
-        # Parse out the action and input
-        action_match = llm_output.strip().split("\n")[0]
-        if "StockData" not in action_match:
-            return AgentFinish(
-                return_values={"output": "I cannot help with that request."},
-                log=llm_output,
-            )
-            
-        action = "StockData"
-        action_input = action_match.split("StockData")[-1].strip()
-        
-        return AgentAction(tool=action, tool_input=action_input.strip("()"), log=llm_output)
-    
+
     # Initialize the agent
     agent = LLMSingleActionAgent(
         llm_chain=llm_chain,
-        output_parser=output_parser,
+        output_parser=StockAgentOutputParser(),
         stop=["\nObservation:"],
         allowed_tools=[tool.name for tool in tools]
     )
@@ -163,5 +185,20 @@ def create_stock_agent():
 if __name__ == "__main__":
     # Example usage
     agent = create_stock_agent()
-    result = agent.run("What is the current price of AAPL stock?")
+    
+    # Test the stock data tool directly first
+    tools = [StockDataTool()]
+    stock_tool = tools[0]
+    print("\nTesting StockData tool directly:")
+    result = stock_tool._get_stock_data("AAPL")
+    print(result)
+    
+    print("\nTesting agent with the same query:")
+    result = agent.run(
+        {
+            "input": "What is the current price of AAPL stock?",
+            "tools": tools,
+            "agent_scratchpad": ""
+        }
+    )
     print(result)
