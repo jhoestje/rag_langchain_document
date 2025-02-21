@@ -19,6 +19,8 @@ load_dotenv()
 
 # Initialize API keys
 ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
+if not ALPHA_VANTAGE_API_KEY:
+    raise ValueError("Please set the ALPHA_VANTAGE_API_KEY environment variable in your .env file")
 
 # Model configuration
 MODEL = 'llama3.2'  # using the same model as in app.py
