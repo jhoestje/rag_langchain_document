@@ -1,14 +1,15 @@
 import os
-from typing import List, Any, Union, Dict, TypedDict, Annotated, Sequence
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_ollama import OllamaLLM
+from typing import List, Any, Union, Dict, TypedDict, Annotated, Sequence, ClassVar
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_ollama import OllamaLLM, ChatOllama
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, FunctionMessage
+from langchain_core.runnables import RunnablePassthrough
+from langgraph.pregel import END
+from langgraph.prebuilt import ToolNode
+from langchain_core.tools import BaseTool
 import requests
 from dotenv import load_dotenv
 import logging
-from typing import ClassVar
-from langgraph.graph import StateGraph, END
-from langchain_core.tools import BaseTool
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -85,57 +86,35 @@ def create_stock_agent():
 IMPORTANT: To get stock data, use the StockData tool with a stock symbol (e.g., AAPL, GOOGL).
 Format your response like this:
 Current Price: $X.XX
-Summary: A brief summary of the stock's current status.
-
-{chat_history}
-Human: {input}
-Assistant: Let me help you with that."""),
-        MessagesPlaceholder(variable_name="messages"),
+Summary: A brief summary of the stock's current status."""),
+        MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}")
     ])
 
     # Create the model
-    model = OllamaLLM(model=MODEL)
+    model = ChatOllama(model=MODEL)
 
-    # Create the agent state
+    # Create the agent
     agent = (
         RunnablePassthrough.assign(
-            agent_outcome=prompt | model
+            chat_history=lambda x: x.get("chat_history", []),
+            agent_outcome=lambda x: prompt | model
         )
-        | GraphState(
-            agent_state=lambda x: x["agent_outcome"],
-            should_end=lambda x: not isinstance(x.get("agent_outcome"), BaseMessage),
-            config={"recursion_limit": 10}  # Lower recursion limit and ensure proper state transitions
-        )
+        | ToolNode(tools)
     )
 
     return agent
 
 if __name__ == "__main__":
-    # Example usage
-    agent = create_stock_agent()
-    
-    # Test the stock data tool directly first
-    tools = [StockDataTool()]
-    stock_tool = tools[0]
     print("\nTesting StockData tool directly:")
+    stock_tool = StockDataTool()
     result = stock_tool._run("AAPL")
     print(result)
-    
+
     print("\nTesting agent with the same query:")
+    agent = create_stock_agent()
     result = agent.invoke({
-        "messages": [HumanMessage(content="What is the current price of AAPL stock?")],
-        "next": "call_model",
-        "tool_used": False
+        "input": "What is the current price of AAPL stock?",
+        "chat_history": []
     })
-    
-    # Print the conversation
-    print("\nConversation:")
-    for message in result["messages"]:
-        if isinstance(message, HumanMessage):
-            print(f"Human: {message.content}")
-        elif isinstance(message, AIMessage):
-            print(f"Assistant: {message.content}")
-        elif isinstance(message, FunctionMessage):
-            print(f"Function ({message.name}): {message.content}")
-        print()
+    print(result)
