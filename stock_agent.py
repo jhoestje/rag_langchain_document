@@ -107,8 +107,27 @@ Do not ask follow-up questions."""),
         messages = state["messages"]
         
         # Check if we've already used the tool and got a response
-        if any(isinstance(msg, FunctionMessage) for msg in state["messages"]):
-            logger.info("Tool has been used, ending conversation")
+        has_function_message = any(isinstance(msg, FunctionMessage) for msg in state["messages"])
+        if has_function_message:
+            logger.info("Tool has been used, getting final response")
+            # Format prompt for final response
+            last_human_msg = next((msg for msg in reversed(messages) 
+                                if isinstance(msg, HumanMessage)), None)
+            
+            if not last_human_msg:
+                logger.info("No human message found, ending")
+                state["next"] = END
+                return state
+                
+            # Get final response from model
+            formatted_messages = prompt.format_messages(
+                messages=messages,
+                input=last_human_msg.content
+            )
+            model_response = llm.invoke(formatted_messages)
+            state["messages"].append(AIMessage(content=model_response))
+            
+            logger.info("Final response added, ending conversation")
             state["next"] = END
             return state
         
