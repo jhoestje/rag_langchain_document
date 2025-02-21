@@ -62,9 +62,14 @@ def create_stock_agent():
     
     # Create the prompt template
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a stock market expert assistant. Your task is to help users get stock market data.
+        ("system", """You are a stock market expert assistant with access to real-time stock data through the StockData tool.
 
-When you need stock data, use the StockData tool with the stock symbol.
+IMPORTANT: To get stock data, you MUST use this exact format: StockData(SYMBOL)
+For example:
+- To get Apple stock data, type: StockData(AAPL)
+- To get Google stock data, type: StockData(GOOGL)
+
+DO NOT give general advice or alternatives. ALWAYS use the StockData tool to get current prices.
 After getting the data, provide a clear summary and end the conversation.
 Do not ask follow-up questions."""),
         MessagesPlaceholder(variable_name="messages"),
