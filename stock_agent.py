@@ -84,10 +84,7 @@ For example, if they ask about Apple's stock price, you should use AAPL as the s
 Current tools available:
 StockData: Gets current stock market data for a given symbol (e.g., AAPL, GOOGL)
 
-Format your responses like this:
-Symbol: AAPL
-Current Price: $X.XX
-Summary: A brief summary of the stock's current status."""),
+DO NOT make up any prices. Instead, just tell me which stock symbol you want to look up."""),
         ("human", "{input}")
     ])
     
@@ -96,15 +93,25 @@ Summary: A brief summary of the stock's current status."""),
         formatted_prompt = prompt.format_messages(input=input_dict["input"])
         # Get the model's response
         response = model.invoke(formatted_prompt)
-        # Extract the symbol from the response
         content = response.content
-        if "AAPL" in content:  # This is a simple example, you'd want more robust symbol extraction
-            symbol = "AAPL"
-            # Get stock data
-            stock_data = tools[0]._run(symbol)
-            # Return both the original response and the stock data
-            return f"Agent response: {content}\n\nStock Data: {stock_data}"
-        return content
+        logger.info(f"Model response: {content}")
+        
+        # Extract any capitalized 1-5 letter sequence that might be a symbol
+        import re
+        # Look in both the original input and the model's response
+        text_to_search = input_dict["input"] + " " + content
+        symbols = re.findall(r'\b[A-Z]{1,5}\b', text_to_search.upper())
+        
+        if not symbols:
+            return "I couldn't identify a stock symbol in your question. Please specify a stock symbol (e.g., AAPL for Apple or GOOGL for Google)."
+        
+        # Use the first symbol found
+        symbol = symbols[0]
+        logger.info(f"Extracted symbol: {symbol}")
+        
+        # Get stock data
+        stock_data = tools[0]._run(symbol)
+        return f"Based on your question about {symbol} stock:\n\n{stock_data}"
     
     return process_input
 
