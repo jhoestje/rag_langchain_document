@@ -98,7 +98,11 @@ Summary: A brief summary of the stock's current status."""),
     agent = (
         RunnablePassthrough.assign(
             chat_history=lambda x: x.get("chat_history", []),
-            agent_outcome=lambda x: prompt | model
+            messages=lambda x: prompt.format_messages(
+                input=x["input"],
+                chat_history=x.get("chat_history", [])
+            ),
+            agent_outcome=lambda x: model.invoke(x["messages"])
         )
         | ToolNode(tools)
     )
