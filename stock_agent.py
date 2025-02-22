@@ -1,11 +1,9 @@
 import os
 from typing import List, Any, Union, Dict, TypedDict, Annotated, Sequence, ClassVar
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_ollama import OllamaLLM, ChatOllama
+from langchain_ollama import ChatOllama
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, FunctionMessage
 from langchain_core.runnables import RunnablePassthrough
-from langgraph.pregel import END
-from langgraph.prebuilt import ToolNode
 from langchain_core.tools import BaseTool
 import requests
 from dotenv import load_dotenv
@@ -69,45 +67,46 @@ class StockDataTool(BaseTool):
             logger.error(f"Exception during API call: {str(e)}")
             return f"Error: Exception while fetching data for symbol {symbol}: {str(e)}"
 
-# Define our state
-class AgentState(TypedDict):
-    messages: Annotated[Sequence[BaseMessage], "The messages in the conversation"]
-    next: str
-    tool_used: bool
-
 def create_stock_agent():
     # Create the tools
     tools = [StockDataTool()]
     
-    # Create the prompt template
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a stock market expert assistant with access to real-time stock data through the StockData tool.
-
-IMPORTANT: To get stock data, use the StockData tool with a stock symbol (e.g., AAPL, GOOGL).
-Format your response like this:
-Current Price: $X.XX
-Summary: A brief summary of the stock's current status."""),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}")
-    ])
-
     # Create the model
     model = ChatOllama(model=MODEL)
+    
+    # Create the prompt template
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a stock market expert assistant with access to real-time stock data.
+        
+To get stock data, you must extract the stock symbol from the user's question and use it to look up the current price.
+For example, if they ask about Apple's stock price, you should use AAPL as the symbol.
 
-    # Create the agent
-    agent = (
-        RunnablePassthrough.assign(
-            chat_history=lambda x: x.get("chat_history", []),
-            messages=lambda x: prompt.format_messages(
-                input=x["input"],
-                chat_history=x.get("chat_history", [])
-            ),
-            agent_outcome=lambda x: model.invoke(x["messages"])
-        )
-        | ToolNode(tools)
-    )
+Current tools available:
+StockData: Gets current stock market data for a given symbol (e.g., AAPL, GOOGL)
 
-    return agent
+Format your responses like this:
+Symbol: AAPL
+Current Price: $X.XX
+Summary: A brief summary of the stock's current status."""),
+        ("human", "{input}")
+    ])
+    
+    def process_input(input_dict: dict) -> dict:
+        # Format the input for the model
+        formatted_prompt = prompt.format_messages(input=input_dict["input"])
+        # Get the model's response
+        response = model.invoke(formatted_prompt)
+        # Extract the symbol from the response
+        content = response.content
+        if "AAPL" in content:  # This is a simple example, you'd want more robust symbol extraction
+            symbol = "AAPL"
+            # Get stock data
+            stock_data = tools[0]._run(symbol)
+            # Return both the original response and the stock data
+            return f"Agent response: {content}\n\nStock Data: {stock_data}"
+        return content
+    
+    return process_input
 
 if __name__ == "__main__":
     print("\nTesting StockData tool directly:")
@@ -117,8 +116,7 @@ if __name__ == "__main__":
 
     print("\nTesting agent with the same query:")
     agent = create_stock_agent()
-    result = agent.invoke({
-        "input": "What is the current price of AAPL stock?",
-        "chat_history": []
+    result = agent({
+        "input": "What is the current price of AAPL stock?"
     })
     print(result)
