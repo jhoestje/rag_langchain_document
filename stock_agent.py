@@ -9,6 +9,7 @@ import requests
 from dotenv import load_dotenv
 import logging
 
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -16,6 +17,12 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 logger.info("Loading environment variables...")
 load_dotenv()
+
+#  LangSmith may not give token count with Ollama
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT="https://api.smith.langchain.com"
+LANGSMITH_API_KEY=os.getenv("LANGSMITH_API_KEY")
+LANGSMITH_PROJECT="stock_agent_poc"
 
 # Initialize API keys
 logger.info("Checking for API key...")
