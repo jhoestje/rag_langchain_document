@@ -51,8 +51,10 @@ This repository contains a Retrieval-Augmented Generation (RAG) implementation u
 
 ## Project Structure
 
-- `app.py` - Main application using Chroma vector store
-- `app_mongo.py` - Alternative implementation using MongoDB (for reference)
+- `document_app.py` - Main application using Chroma vector store
+- `document_app_mongo.py` - Alternative implementation using MongoDB (for reference)
+- `stock_agent.py` - Stock market information agent
+- `tavily_agent.py` - Web search agent using Tavily
 - `documents/` - Directory for source documents (add your .txt files here)
 
 ## Configuration
@@ -63,7 +65,7 @@ This repository contains a Retrieval-Augmented Generation (RAG) implementation u
 
 2. Configure the LLM:
    - The application uses Ollama's llama3.2 model by default
-   - You can modify the `MODEL` constant in `app.py` to use a different model
+   - You can modify the `MODEL` constant in `document_app.py` to use a different model
 
 3. Chroma Settings:
    - Vector store data is persisted in `./chroma_db/`
@@ -75,7 +77,7 @@ This repository contains a Retrieval-Augmented Generation (RAG) implementation u
 
 1. Start the application:
    ```bash
-   python app.py
+   python document_app.py
    ```
 
 2. Enter your queries when prompted
@@ -154,11 +156,6 @@ Install the required packages for the new agents:
 ```bash
 pip install tavily-python langchain-community python-dotenv requests
 ```
-
-## Project Structure Updates
-
-- `stock_agent.py` - Stock market information agent
-- `tavily_agent.py` - Web search agent using Tavily
 
 ## Contributing
 
