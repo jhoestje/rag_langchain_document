@@ -97,6 +97,69 @@ The application includes robust error handling for:
 - Document processing failures
 - LLM and vector store interactions
 
+## Additional Agents
+
+### Stock Market Agent
+
+The repository includes a stock market agent that provides real-time stock information and analysis:
+
+- Real-time stock data using Alpha Vantage API
+- Stock price queries and analysis
+- Historical data retrieval
+- Market insights and trends
+- LangSmith integration for monitoring and debugging
+
+#### Stock Agent Setup
+
+1. Get an API key from [Alpha Vantage](https://www.alphavantage.co/support/#api-key)
+2. Add to your `.env` file:
+   ```bash
+   ALPHA_VANTAGE_API_KEY=your_api_key_here
+   ```
+
+### Tavily Search Agent
+
+A search agent powered by Tavily's AI-optimized search engine:
+
+- Real-time web search capabilities
+- AI-optimized search results
+- Factual and accurate information retrieval
+- Integrated with LangSmith for performance tracking
+
+#### Tavily Agent Setup
+
+1. Get an API key from [Tavily](https://tavily.com)
+2. Add to your `.env` file:
+   ```bash
+   TAVILY_API_KEY=your_api_key_here
+   ```
+
+### LangSmith Integration
+
+Both agents include LangSmith integration for advanced monitoring and debugging:
+
+1. Get a LangSmith API key from [LangSmith](https://smith.langchain.com)
+2. Add to your `.env` file:
+   ```bash
+   LANGSMITH_API_KEY=your_api_key_here
+   ```
+3. Environment variables are automatically configured in both agents:
+   - LANGSMITH_TRACING=true
+   - LANGSMITH_ENDPOINT="https://api.smith.langchain.com"
+   - Project names: "stock_agent_poc" and "tavily_poc"
+
+## Additional Dependencies
+
+Install the required packages for the new agents:
+```bash
+pip install tavily-python langchain-community python-dotenv requests
+```
+
+## Project Structure Updates
+
+- `stock_agent.py` - Stock market information agent
+- `tavily_agent.py` - Web search agent using Tavily
+
 ## Contributing
 
 Feel free to submit issues, fork the repository, and create pull requests for any improvements.
