@@ -1,4 +1,4 @@
-package com.example.pgai.batch;
+package com.johoco.springbatchpgaiapp.batch;
 
 import org.springframework.batch.item.ItemReader;
 import org.springframework.beans.factory.annotation.Value;

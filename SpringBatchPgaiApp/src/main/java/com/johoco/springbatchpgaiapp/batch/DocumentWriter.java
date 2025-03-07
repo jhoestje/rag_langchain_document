@@ -1,7 +1,7 @@
-package com.example.pgai.batch;
+package com.johoco.springbatchpgaiapp.batch;
 
-import com.example.pgai.model.Document;
-import com.example.pgai.repository.DocumentRepository;
+import com.johoco.springbatchpgaiapp.model.Document;
+import com.johoco.springbatchpgaiapp.repository.DocumentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;

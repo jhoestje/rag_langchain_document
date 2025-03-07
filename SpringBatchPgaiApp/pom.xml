@@ -11,10 +11,10 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
-    <artifactId>pgai-document-processor</artifactId>
+    <groupId>com.johoco</groupId>
+    <artifactId>springbatchpgaiapp</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>pgai-document-processor</name>
+    <name>springbatchpgaiapp</name>
     <description>Document processor with pgAI and Spring Batch</description>
 
     <properties>

@@ -1,4 +1,4 @@
-package com.example.pgai;
+package com.johoco.springbatchpgaiapp;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

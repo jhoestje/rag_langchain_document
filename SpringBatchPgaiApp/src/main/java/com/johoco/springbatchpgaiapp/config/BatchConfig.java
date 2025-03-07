@@ -1,7 +1,9 @@
-package com.example.pgai.config;
+package com.johoco.springbatchpgaiapp.config;
 
-import com.example.pgai.model.Document;
-import com.example.pgai.service.DocumentProcessor;
+import com.johoco.springbatchpgaiapp.model.Document;
+import com.johoco.springbatchpgaiapp.service.DocumentProcessor;
+import com.johoco.springbatchpgaiapp.batch.DocumentReader;
+import com.johoco.springbatchpgaiapp.batch.DocumentWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;

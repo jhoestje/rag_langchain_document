@@ -1,10 +1,11 @@
-package com.example.pgai.repository;
+package com.johoco.springbatchpgaiapp.repository;
 
-import com.example.pgai.model.Document;
+import com.johoco.springbatchpgaiapp.model.Document;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, Long> {

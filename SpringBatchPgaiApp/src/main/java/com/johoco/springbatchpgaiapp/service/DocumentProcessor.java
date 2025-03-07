@@ -1,6 +1,6 @@
-package com.example.pgai.service;
+package com.johoco.springbatchpgaiapp.service;
 
-import com.example.pgai.model.Document;
+import com.johoco.springbatchpgaiapp.model.Document;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.embedding.AllMiniLmL6V2EmbeddingModel;

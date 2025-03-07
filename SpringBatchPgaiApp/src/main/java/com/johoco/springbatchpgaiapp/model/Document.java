@@ -1,4 +1,4 @@
-package com.example.pgai.model;
+package com.johoco.springbatchpgaiapp.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
