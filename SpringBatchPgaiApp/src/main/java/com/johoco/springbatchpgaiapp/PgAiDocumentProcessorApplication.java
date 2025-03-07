@@ -6,8 +6,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-public class PgAiDocumentProcessorApplication {
+public class SpringBatchPgaiApplication {
     public static void main(String[] args) {
-        SpringApplication.run(PgAiDocumentProcessorApplication.class, args);
+        SpringApplication.run(SpringBatchPgaiApplication.class, args);
     }
 }
