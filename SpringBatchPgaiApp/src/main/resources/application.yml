@@ -33,8 +33,11 @@ spring:
 
 logging:
   level:
+    root: INFO
     com.johoco.springbatchpgaiapp: DEBUG
     org.springframework.batch: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
 document:
   input:
