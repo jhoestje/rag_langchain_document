@@ -1,20 +1,31 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/vectordb
+    url: jdbc:postgresql://localhost:5432/pgaidatabase
     username: postgres
-    password: postgres
+    password: my_pwd
     driver-class-name: org.postgresql.Driver
+    hikari:
+      isolation-level: TRANSACTION_READ_COMMITTED
+      maximum-pool-size: 10
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
   batch:
     jdbc:
       initialize-schema: always
+      isolation-level-for-create: READ_COMMITTED
+      table-prefix: BATCH_
     job:
       enabled: false
+    chunk-size: 10
 
 document:
   input:
-    directory: c:/data/documents
+    directory: C:/workspace/rag/langchain/poc/documents
     polling-interval: 5000

@@ -30,11 +30,12 @@ public class FileWatcherService {
     
     private final Map<String, Long> processedFiles = new HashMap<>();
 
-    @Scheduled(fixedDelayString = "${document.polling-interval}")
+    @Scheduled(fixedDelayString = "${document.input.polling-interval}")
     public void watchDirectory() {
         File directory = new File(inputDirectory);
         if (!directory.exists()) {
             directory.mkdirs();
+            return;
         }
 
         File[] files = directory.listFiles();
@@ -44,16 +45,17 @@ public class FileWatcherService {
                     Long lastModified = processedFiles.get(file.getName());
                     if (lastModified == null || lastModified < file.lastModified()) {
                         try {
+                            log.info("Processing file: {}", file.getName());
                             documentReader.addFile(file);
                             JobParameters params = new JobParametersBuilder()
                                 .addString("fileName", file.getName())
                                 .addLong("timestamp", System.currentTimeMillis())
                                 .toJobParameters();
-                            
                             jobLauncher.run(processDocumentJob, params);
                             processedFiles.put(file.getName(), file.lastModified());
+                            log.info("Successfully processed file: {}", file.getName());
                         } catch (Exception e) {
-                            log.error("Error processing file: " + file.getName(), e);
+                            log.error("Error processing file {}: {}", file.getName(), e.getMessage());
                         }
                     }
                 }

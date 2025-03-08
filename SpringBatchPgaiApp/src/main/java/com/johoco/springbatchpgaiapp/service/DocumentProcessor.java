@@ -1,8 +1,10 @@
 package com.johoco.springbatchpgaiapp.service;
 
 import com.johoco.springbatchpgaiapp.model.Document;
+import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.embedding.AllMiniLmL6V2EmbeddingModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -23,12 +26,18 @@ public class DocumentProcessor {
     public Document processDocument(File file) {
         try {
             String content = Files.readString(file.toPath());
-            float[] embedding = embeddingModel.embed(TextSegment.from(content)).vector();
+            Response<Embedding> embeddingResponse = embeddingModel.embed(TextSegment.from(content));
+            Embedding embedding = embeddingResponse.content();
+            List<Float> vectorList = embedding.vectorAsList();
+            float[] vectorArray = new float[vectorList.size()];
+            for (int i = 0; i < vectorList.size(); i++) {
+                vectorArray[i] = vectorList.get(i).floatValue();
+            }
 
             Document document = new Document();
             document.setFilename(file.getName());
             document.setContent(content);
-            document.setEmbedding(embedding);
+            document.setEmbedding(vectorArray);
             document.setContentType(Files.probeContentType(file.toPath()));
             document.setFileSize(file.length());
             document.setLastModified(file.lastModified());
