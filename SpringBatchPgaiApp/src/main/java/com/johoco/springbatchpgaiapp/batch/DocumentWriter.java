@@ -22,22 +22,23 @@ public class DocumentWriter implements ItemWriter<Document> {
             documentRepository.findByFilename(document.getFilename())
                 .ifPresentOrElse(
                     existing -> {
-                        log.info("Updating existing document: {}", document.getFilename());
+                        log.info("Found existing document: {} with id: {}", existing.getFilename(), existing.getId());
                         existing.setContent(document.getContent());
                         existing.setEmbedding(document.getEmbedding());
                         existing.setFileSize(document.getFileSize());
                         existing.setLastModified(document.getLastModified());
                         existing.setStatus(document.getStatus());
-                        documentRepository.save(existing);
-                        log.info("Successfully updated document: {}", document.getFilename());
+                        Document updatedDocument = documentRepository.save(existing);
+                        log.info("Successfully updated document: {} with id: {}", updatedDocument.getFilename(), updatedDocument.getId());
                     },
                     () -> {
-                        log.info("Saving new document: {}", document.getFilename());
-                        documentRepository.save(document);
-                        log.info("Successfully saved new document: {}", document.getFilename());
+                        log.info("Creating new document: {}", document.getFilename());
+                        Document savedDocument = documentRepository.save(document);
+                        log.info("Successfully created new document: {} with id: {}", savedDocument.getFilename(), savedDocument.getId());
                     }
                 );
         });
-        log.info("Successfully wrote batch of {} documents", documents.size());
+        
+        log.info("Successfully processed batch of {} documents", documents.size());
     }
 }
