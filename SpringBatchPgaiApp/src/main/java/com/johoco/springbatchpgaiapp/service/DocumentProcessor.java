@@ -46,7 +46,6 @@ public class DocumentProcessor {
             document.setFilename(file.getName());
             document.setContent(content);
             document.setEmbedding(vectorArray);
-            document.setContentType(Files.probeContentType(file.toPath()));
             document.setFileSize(file.length());
             document.setLastModified(file.lastModified());
             document.setStatus("PROCESSED");
