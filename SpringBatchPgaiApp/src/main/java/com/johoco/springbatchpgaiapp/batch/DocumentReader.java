@@ -1,52 +1,86 @@
 package com.johoco.springbatchpgaiapp.batch;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ItemStreamException;
 import org.springframework.batch.item.ItemStreamReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.batch.item.ExecutionContext;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Component
 public class DocumentReader implements ItemStreamReader<File> {
-    private final Queue<File> filesToProcess = new ConcurrentLinkedQueue<>();
-    private boolean initialized = false;
-
     @Value("${document.input.directory}")
     private String inputDirectory;
+    
+    private final Queue<File> filesToProcess;
+    private boolean initialized;
 
-    public void addFile(File file) {
-        filesToProcess.offer(file);
+    public DocumentReader() {
+        this.filesToProcess = new LinkedList<>();
+        this.initialized = false;
+        log.info("DocumentReader constructed with empty queue");
     }
 
     @Override
-    public File read() {
+    public void open(ExecutionContext executionContext) throws ItemStreamException {
+        log.info("Opening DocumentReader...");
+        try {
+            Path inputPath = Paths.get(inputDirectory);
+            if (!Files.exists(inputPath)) {
+                log.info("Creating input directory: {}", inputDirectory);
+                Files.createDirectories(inputPath);
+            }
+            
+            filesToProcess.clear();
+            Files.list(inputPath)
+                .filter(Files::isRegularFile)
+                .map(Path::toFile)
+                .forEach(filesToProcess::offer);
+            
+            log.info("DocumentReader opened successfully. Input directory: {}, Found {} files", inputDirectory, filesToProcess.size());
+            initialized = true;
+        } catch (Exception e) {
+            log.error("Error initializing DocumentReader: {}", e.getMessage(), e);
+            throw new ItemStreamException("Failed to initialize DocumentReader", e);
+        }
+    }
+
+    @Override
+    public File read() throws Exception {
         if (!initialized) {
+            log.error("DocumentReader not initialized! Call open() first.");
             throw new IllegalStateException("Reader must be opened before it can be read");
         }
-        return filesToProcess.poll();
-    }
-
-    @Override
-    public void open(org.springframework.batch.item.ExecutionContext executionContext) throws ItemStreamException {
-        initialized = true;
-        // Create input directory if it doesn't exist
-        File directory = new File(inputDirectory);
-        if (!directory.exists()) {
-            directory.mkdirs();
+        
+        File nextFile = filesToProcess.poll();
+        if (nextFile != null) {
+            log.debug("Reading file: {}", nextFile.getName());
+        } else {
+            log.debug("No more files to process");
         }
+        return nextFile;
     }
 
     @Override
-    public void update(org.springframework.batch.item.ExecutionContext executionContext) throws ItemStreamException {
-        // No state to update since we're using a queue
+    public void update(ExecutionContext executionContext) throws ItemStreamException {
+        // No state to update between steps
     }
 
     @Override
     public void close() throws ItemStreamException {
+        log.info("Closing DocumentReader");
+        if (filesToProcess != null) {
+            filesToProcess.clear();
+        }
         initialized = false;
-        filesToProcess.clear();
     }
 }

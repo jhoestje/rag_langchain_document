@@ -14,14 +14,17 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
     database-platform: org.hibernate.dialect.PostgreSQLDialect
   sql:
     init:
       mode: always
       platform: postgresql
       continue-on-error: true
-      schema-locations: classpath:schema-postgresql.sql
+      schema-locations: 
+        - classpath:schema-postgresql.sql
+        - classpath:schema-documents.sql
   batch:
     jdbc:
       initialize-schema: always
@@ -35,7 +38,10 @@ logging:
   level:
     root: INFO
     com.johoco.springbatchpgaiapp: DEBUG
-    org.springframework.batch: INFO
+    org.springframework.batch: DEBUG
+    org.springframework.jdbc: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 

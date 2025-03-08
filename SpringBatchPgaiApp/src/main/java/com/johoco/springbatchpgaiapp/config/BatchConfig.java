@@ -1,41 +1,45 @@
 package com.johoco.springbatchpgaiapp.config;
 
-import com.johoco.springbatchpgaiapp.model.Document;
-import com.johoco.springbatchpgaiapp.service.DocumentProcessor;
 import com.johoco.springbatchpgaiapp.batch.DocumentReader;
 import com.johoco.springbatchpgaiapp.batch.DocumentWriter;
+import com.johoco.springbatchpgaiapp.model.Document;
+import com.johoco.springbatchpgaiapp.service.DocumentProcessor;
+import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
-import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.TaskExecutorJobLauncher;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.repository.support.JobRepositoryFactoryBean;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.item.ItemProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
 import java.io.File;
 
+@Slf4j
 @Configuration
-@EnableBatchProcessing
 @RequiredArgsConstructor
 public class BatchConfig {
-    private final DocumentProcessor documentProcessor;
-    private final DocumentReader documentReader;
-    private final DocumentWriter documentWriter;
     private final DataSource dataSource;
+    private final EntityManagerFactory entityManagerFactory;
+    private final DocumentReader documentReader;
+    private final DocumentProcessor documentProcessor;
+    private final DocumentWriter documentWriter;
 
     @Bean
+    @Primary
     public PlatformTransactionManager transactionManager() {
-        return new DataSourceTransactionManager(dataSource);
+        log.info("Creating transaction manager with dataSource");
+        return new JpaTransactionManager(entityManagerFactory);
     }
 
     @Bean
@@ -59,18 +63,20 @@ public class BatchConfig {
     }
 
     @Bean
-    public Job processDocumentJob(Step processDocumentStep) throws Exception {
-        return new JobBuilder("processDocumentJob", jobRepository())
-                .start(processDocumentStep)
+    public Job processDocumentJob(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        log.info("Creating processDocumentJob with jobRepository and transactionManager");
+        return new JobBuilder("processDocumentJob", jobRepository)
+                .start(processDocumentStep(jobRepository, transactionManager))
                 .build();
     }
 
     @Bean
-    public Step processDocumentStep() throws Exception {
-        return new StepBuilder("processDocumentStep", jobRepository())
-                .<File, Document>chunk(10, transactionManager())
+    public Step processDocumentStep(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+        log.info("Creating processDocumentStep with chunk size 10");
+        return new StepBuilder("processDocumentStep", jobRepository)
+                .<File, Document>chunk(10, transactionManager)
                 .reader(documentReader)
-                .processor((ItemProcessor<File, Document>) documentProcessor::processDocument)
+                .processor(documentProcessor)
                 .writer(documentWriter)
                 .build();
     }

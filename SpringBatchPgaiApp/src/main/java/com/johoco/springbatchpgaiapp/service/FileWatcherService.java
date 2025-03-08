@@ -12,8 +12,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,7 +21,6 @@ import java.util.Map;
 public class FileWatcherService {
     private final JobLauncher jobLauncher;
     private final Job processDocumentJob;
-    private final DocumentReader documentReader;
     
     @Value("${document.input.directory}")
     private String inputDirectory;
@@ -46,7 +43,6 @@ public class FileWatcherService {
                     if (lastModified == null || lastModified < file.lastModified()) {
                         try {
                             log.info("Processing file: {}", file.getName());
-                            documentReader.addFile(file);
                             JobParameters params = new JobParametersBuilder()
                                 .addString("fileName", file.getName())
                                 .addLong("timestamp", System.currentTimeMillis())
