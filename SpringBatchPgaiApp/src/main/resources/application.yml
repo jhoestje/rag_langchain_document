@@ -31,6 +31,11 @@ spring:
       enabled: false
     chunk-size: 10
 
+logging:
+  level:
+    com.johoco.springbatchpgaiapp: DEBUG
+    org.springframework.batch: INFO
+
 document:
   input:
     directory: C:/workspace/rag/langchain/poc/documents
