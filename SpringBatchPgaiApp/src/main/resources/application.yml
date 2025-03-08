@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/pgaidatabase
+    url: jdbc:postgresql://localhost:5432/pgaidatabase?stringtype=unspecified
     username: postgres
     password: my_pwd
     driver-class-name: org.postgresql.Driver
@@ -16,6 +16,12 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+  sql:
+    init:
+      mode: always
+      platform: postgresql
+      continue-on-error: true
+      schema-locations: classpath:schema-postgresql.sql
   batch:
     jdbc:
       initialize-schema: always
