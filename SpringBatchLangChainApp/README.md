@@ -22,7 +22,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 ```yaml
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/vectordb
+    url: jdbc:postgresql://localhost:5432/langchaindatabase
     username: postgres
     password: my_pwd
 ```
