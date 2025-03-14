@@ -63,3 +63,51 @@ mvn spring-boot:run
 - Vector similarity search support
 - Batch processing with Spring Batch
 - Automatic update of modified documents
+
+## Vector Embedding Storage
+
+The application implements best practices for storing and retrieving embeddings in PostgreSQL:
+
+### Database Schema
+
+- Uses PostgreSQL's native `vector(384)` type for storing embeddings
+- Creates an IVFFlat index for fast similarity search:
+  ```sql
+  CREATE INDEX IF NOT EXISTS documents_embedding_idx ON documents 
+  USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+  ```
+- Stores document metadata alongside embeddings for better context
+
+### LangChain4j Integration
+
+- Utilizes `langchain4j-pgvector` for efficient vector operations
+- Configures `PgVectorEmbeddingStore` with proper dimension (384) for all-MiniLM-L6-v2 model
+- Stores embeddings in both the Document entity and the embedding store
+
+### Semantic Search
+
+- Provides a `DocumentSearchService` for semantic similarity search
+- Supports finding relevant documents based on natural language queries
+- Includes configurable similarity thresholds and result limits
+
+### Performance Considerations
+
+- Vector operations performed natively in the database
+- IVFFlat index dramatically speeds up similarity searches for large collections
+- Proper dimensionality ensures compatibility with the embedding model
+
+## Architecture
+
+The application follows a modular architecture:
+
+1. **File Detection**: Monitors input directory for new/modified files
+2. **Document Processing**: Extracts content and generates embeddings
+3. **Vector Storage**: Stores embeddings in PostgreSQL using pgvector
+4. **Semantic Search**: Enables similarity search across document collection
+
+## Future Enhancements
+
+- REST API for semantic search queries
+- Support for additional document formats
+- Fine-tuning of vector index parameters for larger collections
+- Integration with other embedding models

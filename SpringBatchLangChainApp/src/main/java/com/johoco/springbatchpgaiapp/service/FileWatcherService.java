@@ -4,16 +4,17 @@ import com.johoco.springbatchpgaiapp.batch.DocumentReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -21,11 +22,13 @@ import java.util.Map;
 public class FileWatcherService {
     private final JobLauncher jobLauncher;
     private final Job processDocumentJob;
+    private final FileManagementService fileManagementService;
     
     @Value("${document.input.directory}")
     private String inputDirectory;
     
-    private final Map<String, Long> processedFiles = new HashMap<>();
+    // Use ConcurrentHashMap for thread safety
+    private final ConcurrentHashMap<String, Boolean> processingFiles = new ConcurrentHashMap<>();
 
     @Scheduled(fixedDelayString = "${document.input.polling-interval}")
     public void watchDirectory() {
@@ -38,24 +41,54 @@ public class FileWatcherService {
         File[] files = directory.listFiles();
         if (files != null) {
             for (File file : files) {
-                if (file.isFile()) {
-                    Long lastModified = processedFiles.get(file.getName());
-                    if (lastModified == null || lastModified < file.lastModified()) {
-                        try {
-                            log.info("Processing file: {}", file.getName());
-                            JobParameters params = new JobParametersBuilder()
-                                .addString("fileName", file.getName())
-                                .addLong("timestamp", System.currentTimeMillis())
-                                .toJobParameters();
-                            jobLauncher.run(processDocumentJob, params);
-                            processedFiles.put(file.getName(), file.lastModified());
+                if (file.isFile() && !isFileBeingProcessed(file.getName())) {
+                    try {
+                        // Mark file as being processed
+                        markFileAsProcessing(file.getName());
+                        
+                        log.info("Processing file: {}", file.getName());
+                        JobParameters params = new JobParametersBuilder()
+                            .addString("fileName", file.getName())
+                            .addLong("timestamp", System.currentTimeMillis())
+                            .toJobParameters();
+                        
+                        JobExecution jobExecution = jobLauncher.run(processDocumentJob, params);
+                        
+                        // Check job execution status
+                        if (jobExecution.getExitStatus().equals(ExitStatus.COMPLETED)) {
                             log.info("Successfully processed file: {}", file.getName());
-                        } catch (Exception e) {
-                            log.error("Error processing file {}: {}", file.getName(), e.getMessage());
+                            // File should have been moved by DocumentWriter
+                        } else if (jobExecution.getExitStatus().equals(ExitStatus.FAILED)) {
+                            log.error("Job failed for file: {}", file.getName());
+                            // Move to failure directory if still exists
+                            if (file.exists()) {
+                                fileManagementService.moveToFailureDirectory(file);
+                            }
                         }
+                    } catch (Exception e) {
+                        log.error("Error processing file {}: {}", file.getName(), e.getMessage(), e);
+                        // Move to failure directory if still exists
+                        if (file.exists()) {
+                            fileManagementService.moveToFailureDirectory(file);
+                        }
+                    } finally {
+                        // Unmark file regardless of outcome
+                        unmarkFileAsProcessing(file.getName());
                     }
                 }
             }
         }
+    }
+    
+    private boolean isFileBeingProcessed(String fileName) {
+        return processingFiles.containsKey(fileName);
+    }
+    
+    private void markFileAsProcessing(String fileName) {
+        processingFiles.put(fileName, Boolean.TRUE);
+    }
+    
+    private void unmarkFileAsProcessing(String fileName) {
+        processingFiles.remove(fileName);
     }
 }

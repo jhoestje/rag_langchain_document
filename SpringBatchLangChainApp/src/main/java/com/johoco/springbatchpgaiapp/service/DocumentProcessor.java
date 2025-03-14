@@ -6,6 +6,8 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.embedding.AllMiniLmL6V2EmbeddingModel;
+import dev.langchain4j.store.embedding.EmbeddingStore;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Service;
@@ -14,16 +16,29 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Service
 public class DocumentProcessor implements ItemProcessor<File, Document> {
     private final EmbeddingModel embeddingModel;
+    private final EmbeddingStore<TextSegment> embeddingStore;
+    private final FileManagementService fileManagementService;
+    
+    // Map to track original files and their processing status
+    private final Map<String, File> processedFiles = new HashMap<>();
 
-    public DocumentProcessor() {
+    public DocumentProcessor(EmbeddingStore<TextSegment> embeddingStore, FileManagementService fileManagementService) {
         log.info("Initializing DocumentProcessor with AllMiniLmL6V2EmbeddingModel");
         this.embeddingModel = new AllMiniLmL6V2EmbeddingModel();
+        this.embeddingStore = embeddingStore;
+        this.fileManagementService = fileManagementService;
+    }
+    
+    @PostConstruct
+    public void init() {
+        log.info("DocumentProcessor initialized with embeddingModel: {}", embeddingModel.getClass().getSimpleName());
     }
 
     @Override
@@ -39,6 +54,7 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
             String content = readFileContent(file);
             if (content == null || content.trim().isEmpty()) {
                 log.warn("File {} is empty", file.getName());
+                fileManagementService.moveToFailureDirectory(file);
                 return null;
             }
 
@@ -51,28 +67,72 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
 
             try {
                 log.debug("Generating embedding for document: {}", file.getName());
-                Response<Embedding> embeddingResponse = embeddingModel.embed(TextSegment.from(content));
+                TextSegment segment = TextSegment.from(content);
+                Response<Embedding> embeddingResponse = embeddingModel.embed(segment);
                 Embedding embedding = embeddingResponse.content();
-                List<Float> vectorList = embedding.vectorAsList();
-                float[] vectorArray = new float[vectorList.size()];
-                for (int i = 0; i < vectorList.size(); i++) {
-                    vectorArray[i] = vectorList.get(i).floatValue();
+                
+                // Convert to float array for storage in the document entity
+                float[] vectorArray = new float[embedding.vector().length];
+                for (int i = 0; i < embedding.vector().length; i++) {
+                    vectorArray[i] = embedding.vector()[i];
                 }
                 document.setEmbedding(vectorArray);
                 document.setStatus("PROCESSED");
-                log.info("Successfully generated embedding with {} dimensions for document: {}", vectorList.size(), file.getName());
+                
+                // Also store in the embedding store with metadata
+                try {
+                    // Create a simple TextSegment with the content
+                    // The PgVectorEmbeddingStore will handle the storage in its own table
+                    embeddingStore.add(embedding, TextSegment.from(content));
+                    log.info("Successfully stored embedding in PgVector store for document: {}", file.getName());
+                } catch (Exception e) {
+                    log.error("Error storing embedding in PgVector store: {}", e.getMessage(), e);
+                    // Continue processing - we still have the embedding in the document entity
+                }
+                
+                log.info("Successfully generated embedding with {} dimensions for document: {}", 
+                         vectorArray.length, file.getName());
+                
+                // Store the original file reference for later movement
+                processedFiles.put(document.getFilename(), file);
+                
             } catch (Exception e) {
                 log.error("Error generating embedding for document {}: {}", file.getName(), e.getMessage(), e);
                 document.setEmbedding(null);
                 document.setStatus("ERROR_EMBEDDING");
+                
+                // Move file to failure directory
+                fileManagementService.moveToFailureDirectory(file);
+                return null;
             }
             
             log.info("Successfully processed document: {} with status: {}", document.getFilename(), document.getStatus());
             return document;
         } catch (IOException e) {
             log.error("Error processing file {}: {}", file.getName(), e.getMessage(), e);
+            // Move file to failure directory
+            fileManagementService.moveToFailureDirectory(file);
             throw new RuntimeException("Error processing file: " + file.getName(), e);
         }
+    }
+    
+    /**
+     * Get the original file for a processed document
+     * 
+     * @param filename The document filename
+     * @return The original file or null if not found
+     */
+    public File getOriginalFile(String filename) {
+        return processedFiles.get(filename);
+    }
+    
+    /**
+     * Remove a file from the tracking map
+     * 
+     * @param filename The document filename
+     */
+    public void removeTrackedFile(String filename) {
+        processedFiles.remove(filename);
     }
 
     private String readFileContent(File file) throws IOException {

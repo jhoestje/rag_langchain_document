@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/pgaidatabase?stringtype=unspecified
+    url: jdbc:postgresql://localhost:5432/langchaindatabase?stringtype=unspecified
     username: postgres
     password: my_pwd
     driver-class-name: org.postgresql.Driver
@@ -49,3 +49,7 @@ document:
   input:
     directory: C:/workspace/rag/langchain/poc/documents
     polling-interval: 5000
+  success:
+    directory: C:/workspace/rag/langchain/poc/documents_done
+  failure:
+    directory: C:/workspace/rag/langchain/poc/documents_done/failed

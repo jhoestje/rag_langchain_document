@@ -2,6 +2,8 @@ package com.johoco.springbatchpgaiapp.batch;
 
 import com.johoco.springbatchpgaiapp.model.Document;
 import com.johoco.springbatchpgaiapp.repository.DocumentRepository;
+import com.johoco.springbatchpgaiapp.service.DocumentProcessor;
+import com.johoco.springbatchpgaiapp.service.FileManagementService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.util.Optional;
 
 @Slf4j
@@ -19,6 +22,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class DocumentWriter implements ItemWriter<Document> {
     private final DocumentRepository documentRepository;
+    private final DocumentProcessor documentProcessor;
+    private final FileManagementService fileManagementService;
 
     @PostConstruct
     public void init() {
@@ -72,13 +77,45 @@ public class DocumentWriter implements ItemWriter<Document> {
                     log.error(error);
                     throw new RuntimeException(error);
                 }
+                
+                // Move the original file to success directory
+                File originalFile = documentProcessor.getOriginalFile(document.getFilename());
+                if (originalFile != null && originalFile.exists()) {
+                    boolean moved = fileManagementService.moveToSuccessDirectory(originalFile);
+                    if (moved) {
+                        log.info("Successfully moved file {} to success directory", originalFile.getName());
+                    } else {
+                        log.warn("Failed to move file {} to success directory", originalFile.getName());
+                    }
+                    // Remove from tracking regardless of move success to prevent memory leaks
+                    documentProcessor.removeTrackedFile(document.getFilename());
+                } else {
+                    log.warn("Original file for document {} not found or no longer exists", document.getFilename());
+                }
+                
             } catch (DataIntegrityViolationException e) {
                 String error = String.format("Database error saving document %s: %s", document.getFilename(), e.getMessage());
                 log.error(error, e);
+                
+                // Move the original file to failure directory
+                File originalFile = documentProcessor.getOriginalFile(document.getFilename());
+                if (originalFile != null && originalFile.exists()) {
+                    fileManagementService.moveToFailureDirectory(originalFile);
+                    documentProcessor.removeTrackedFile(document.getFilename());
+                }
+                
                 throw new RuntimeException(error, e);
             } catch (Exception e) {
                 String error = String.format("Error saving document %s: %s", document.getFilename(), e.getMessage());
                 log.error(error, e);
+                
+                // Move the original file to failure directory
+                File originalFile = documentProcessor.getOriginalFile(document.getFilename());
+                if (originalFile != null && originalFile.exists()) {
+                    fileManagementService.moveToFailureDirectory(originalFile);
+                    documentProcessor.removeTrackedFile(document.getFilename());
+                }
+                
                 throw new RuntimeException(error, e);
             }
         }
