@@ -110,7 +110,7 @@ class DocumentWriterTest {
         verify(documentRepository).save(document);
         verify(documentProcessor).getOriginalFile("missing.txt");
         verify(fileManagementService, never()).moveToSuccessDirectory(any(File.class));
-        verify(documentProcessor).removeTrackedFile("missing.txt");
+        verify(documentProcessor, never()).removeTrackedFile("missing.txt");
     }
     
     @Test
@@ -132,7 +132,6 @@ class DocumentWriterTest {
         verify(documentRepository).save(document);
         verify(documentProcessor).getOriginalFile("error.txt");
         verify(fileManagementService).moveToSuccessDirectory(mockFile);
-        // Should still remove tracked file even if movement fails
         verify(documentProcessor).removeTrackedFile("error.txt");
     }
     
