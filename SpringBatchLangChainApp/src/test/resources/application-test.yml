@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password: 
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+    database-platform: org.hibernate.dialect.H2Dialect
+  batch:
+    jdbc:
+      initialize-schema: always
+    job:
+      enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.johoco.springbatchpgaiapp: DEBUG
+    org.springframework.batch: DEBUG
+    org.hibernate.SQL: DEBUG
+
+document:
+  input:
+    directory: ./target/test-classes/test-documents/input
+    polling-interval: 1000
+  success:
+    directory: ./target/test-classes/test-documents/success
+  failure:
+    directory: ./target/test-classes/test-documents/failure
