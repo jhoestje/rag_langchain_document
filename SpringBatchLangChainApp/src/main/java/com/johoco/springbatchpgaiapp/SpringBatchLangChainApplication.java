@@ -11,8 +11,8 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableScheduling
 @EnableJpaRepositories(basePackages = "com.johoco.springbatchpgaiapp.repository")
 @EnableTransactionManagement
-public class SpringBatchPgaiApplication {
+public class SpringBatchLangChainApplication {
     public static void main(String[] args) {
-        SpringApplication.run(SpringBatchPgaiApplication.class, args);
+        SpringApplication.run(SpringBatchLangChainApplication.class, args);
     }
 }

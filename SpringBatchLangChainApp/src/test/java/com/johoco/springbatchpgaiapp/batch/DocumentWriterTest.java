@@ -41,9 +41,12 @@ class DocumentWriterTest {
     void testWriteSingleDocument() throws Exception {
         // Given
         Document document = createTestDocument("test.txt", "Test content");
+        document.setId(1L); // Set an ID for the document
+        
         File mockFile = mock(File.class);
         when(documentProcessor.getOriginalFile("test.txt")).thenReturn(mockFile);
         when(fileManagementService.moveToSuccessDirectory(mockFile)).thenReturn(true);
+        when(documentRepository.save(any(Document.class))).thenReturn(document);
         
         // When
         documentWriter.write(new Chunk<>(Collections.singletonList(document)));
@@ -59,7 +62,10 @@ class DocumentWriterTest {
     void testWriteMultipleDocuments() throws Exception {
         // Given
         Document doc1 = createTestDocument("test1.txt", "Test content 1");
+        doc1.setId(1L); // Set an ID for doc1
+        
         Document doc2 = createTestDocument("test2.txt", "Test content 2");
+        doc2.setId(2L); // Set an ID for doc2
         
         File mockFile1 = mock(File.class);
         File mockFile2 = mock(File.class);
@@ -67,13 +73,16 @@ class DocumentWriterTest {
         when(documentProcessor.getOriginalFile("test1.txt")).thenReturn(mockFile1);
         when(documentProcessor.getOriginalFile("test2.txt")).thenReturn(mockFile2);
         when(fileManagementService.moveToSuccessDirectory(any(File.class))).thenReturn(true);
+        when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> {
+            Document doc = invocation.getArgument(0);
+            return doc.getFilename().equals("test1.txt") ? doc1 : doc2;
+        });
         
         // When
         documentWriter.write(new Chunk<>(Arrays.asList(doc1, doc2)));
         
         // Then
-        verify(documentRepository).save(doc1);
-        verify(documentRepository).save(doc2);
+        verify(documentRepository, times(2)).save(any(Document.class));
         verify(documentProcessor).getOriginalFile("test1.txt");
         verify(documentProcessor).getOriginalFile("test2.txt");
         verify(fileManagementService).moveToSuccessDirectory(mockFile1);
@@ -86,7 +95,10 @@ class DocumentWriterTest {
     void testWriteDocumentWithNoOriginalFile() throws Exception {
         // Given
         Document document = createTestDocument("missing.txt", "Missing file content");
+        document.setId(1L); // Set an ID for the document
+        
         when(documentProcessor.getOriginalFile("missing.txt")).thenReturn(null);
+        when(documentRepository.save(any(Document.class))).thenReturn(document);
         
         // When
         documentWriter.write(new Chunk<>(Collections.singletonList(document)));
@@ -102,9 +114,12 @@ class DocumentWriterTest {
     void testWriteDocumentWithFileMovementFailure() throws Exception {
         // Given
         Document document = createTestDocument("error.txt", "Error file content");
+        document.setId(1L); // Set an ID for the document
+        
         File mockFile = mock(File.class);
         when(documentProcessor.getOriginalFile("error.txt")).thenReturn(mockFile);
         when(fileManagementService.moveToSuccessDirectory(mockFile)).thenReturn(false);
+        when(documentRepository.save(any(Document.class))).thenReturn(document);
         
         // When
         documentWriter.write(new Chunk<>(Collections.singletonList(document)));

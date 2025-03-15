@@ -5,9 +5,11 @@ import org.springframework.batch.test.JobLauncherTestUtils;
 import org.springframework.batch.test.JobRepositoryTestUtils;
 import org.springframework.batch.test.context.SpringBatchTest;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseType;
 
@@ -17,6 +19,8 @@ import javax.sql.DataSource;
 @EnableBatchProcessing
 @EnableAutoConfiguration
 @SpringBatchTest
+@EntityScan("com.johoco.springbatchpgaiapp.model")
+@EnableJpaRepositories("com.johoco.springbatchpgaiapp.repository")
 public class TestBatchConfig {
 
     @Bean
@@ -25,6 +29,7 @@ public class TestBatchConfig {
         return new EmbeddedDatabaseBuilder()
                 .setType(EmbeddedDatabaseType.H2)
                 .addScript("classpath:org/springframework/batch/core/schema-h2.sql")
+                .generateUniqueName(true)
                 .build();
     }
 

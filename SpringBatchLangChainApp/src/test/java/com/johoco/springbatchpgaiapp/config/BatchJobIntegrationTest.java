@@ -1,6 +1,6 @@
 package com.johoco.springbatchpgaiapp.config;
 
-import com.johoco.springbatchpgaiapp.SpringBatchLangChainAppApplication;
+import com.johoco.springbatchpgaiapp.SpringBatchLangChainApplication;
 import com.johoco.springbatchpgaiapp.model.Document;
 import com.johoco.springbatchpgaiapp.repository.DocumentRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,7 +25,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBatchTest
-@SpringBootTest(classes = {SpringBatchLangChainAppApplication.class, TestBatchConfig.class})
+@SpringBootTest(classes = {SpringBatchLangChainApplication.class, TestBatchConfig.class})
 @ActiveProfiles("test")
 class BatchJobIntegrationTest {
 
