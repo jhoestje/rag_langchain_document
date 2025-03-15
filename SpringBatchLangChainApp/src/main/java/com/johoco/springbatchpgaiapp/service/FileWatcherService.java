@@ -1,6 +1,5 @@
 package com.johoco.springbatchpgaiapp.service;
 
-import com.johoco.springbatchpgaiapp.batch.DocumentReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;

@@ -48,7 +48,7 @@ logging:
 document:
   input:
     directory: C:/workspace/rag/langchain/poc/documents
-    polling-interval: 5000
+    polling-interval: 10000
   success:
     directory: C:/workspace/rag/langchain/poc/documents_done
   failure:
