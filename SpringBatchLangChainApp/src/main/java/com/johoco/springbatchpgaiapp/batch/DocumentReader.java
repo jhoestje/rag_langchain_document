@@ -17,16 +17,15 @@ import java.util.Queue;
 @Slf4j
 @Component
 public class DocumentReader implements ItemStreamReader<File> {
-    @Value("${document.input.directory}")
-    private String inputDirectory;
-    
+    private final String inputDirectory;
     private final Queue<File> filesToProcess;
     private boolean initialized;
 
-    public DocumentReader() {
+    public DocumentReader(@Value("${document.input.directory}") String inputDirectory) {
+        this.inputDirectory = inputDirectory;
         this.filesToProcess = new LinkedList<>();
         this.initialized = false;
-        log.info("DocumentReader constructed with empty queue");
+        log.info("DocumentReader constructed with input directory: {}", inputDirectory);
     }
 
     @Override

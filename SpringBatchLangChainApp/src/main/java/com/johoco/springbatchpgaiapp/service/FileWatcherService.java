@@ -1,6 +1,5 @@
 package com.johoco.springbatchpgaiapp.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
@@ -17,17 +16,26 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class FileWatcherService {
     private final JobLauncher jobLauncher;
     private final Job processDocumentJob;
     private final FileManagementService fileManagementService;
-    
-    @Value("${document.input.directory}")
-    private String inputDirectory;
+    private final String inputDirectory;
     
     // Use ConcurrentHashMap for thread safety
     private final ConcurrentHashMap<String, Boolean> processingFiles = new ConcurrentHashMap<>();
+
+    public FileWatcherService(
+            JobLauncher jobLauncher,
+            Job processDocumentJob,
+            FileManagementService fileManagementService,
+            @Value("${document.input.directory}") String inputDirectory) {
+        this.jobLauncher = jobLauncher;
+        this.processDocumentJob = processDocumentJob;
+        this.fileManagementService = fileManagementService;
+        this.inputDirectory = inputDirectory;
+        log.info("FileWatcherService initialized with input directory: {}", inputDirectory);
+    }
 
     @Scheduled(fixedDelayString = "${document.input.polling-interval}")
     public void watchDirectory() {

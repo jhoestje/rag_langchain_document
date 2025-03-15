@@ -30,15 +30,16 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
     private final Map<String, File> processedFiles = new HashMap<>();
 
     public DocumentProcessor(EmbeddingStore<TextSegment> embeddingStore, FileManagementService fileManagementService) {
-        log.info("Initializing DocumentProcessor with AllMiniLmL6V2EmbeddingModel");
         this.embeddingModel = new AllMiniLmL6V2EmbeddingModel();
         this.embeddingStore = embeddingStore;
         this.fileManagementService = fileManagementService;
+        log.info("DocumentProcessor initialized with embeddingModel: {}", 
+                this.embeddingModel.getClass().getSimpleName());
     }
     
     @PostConstruct
     public void init() {
-        log.info("DocumentProcessor initialized with embeddingModel: {}", embeddingModel.getClass().getSimpleName());
+        log.info("DocumentProcessor post-construction initialization complete");
     }
 
     @Override
