@@ -44,6 +44,7 @@ class DocumentWriterTest {
         document.setId(1L); // Set an ID for the document
         
         File mockFile = mock(File.class);
+        when(mockFile.exists()).thenReturn(true);
         when(documentProcessor.getOriginalFile("test.txt")).thenReturn(mockFile);
         when(fileManagementService.moveToSuccessDirectory(mockFile)).thenReturn(true);
         when(documentRepository.save(any(Document.class))).thenReturn(document);
@@ -69,6 +70,8 @@ class DocumentWriterTest {
         
         File mockFile1 = mock(File.class);
         File mockFile2 = mock(File.class);
+        when(mockFile1.exists()).thenReturn(true);
+        when(mockFile2.exists()).thenReturn(true);
         
         when(documentProcessor.getOriginalFile("test1.txt")).thenReturn(mockFile1);
         when(documentProcessor.getOriginalFile("test2.txt")).thenReturn(mockFile2);
@@ -117,6 +120,7 @@ class DocumentWriterTest {
         document.setId(1L); // Set an ID for the document
         
         File mockFile = mock(File.class);
+        when(mockFile.exists()).thenReturn(true);
         when(documentProcessor.getOriginalFile("error.txt")).thenReturn(mockFile);
         when(fileManagementService.moveToSuccessDirectory(mockFile)).thenReturn(false);
         when(documentRepository.save(any(Document.class))).thenReturn(document);
