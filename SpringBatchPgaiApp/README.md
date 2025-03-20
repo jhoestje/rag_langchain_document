@@ -26,6 +26,27 @@ spring:
     username: postgres
     password: my_pwd
 ```
+// to load the squad dataset from huggingface
+SELECT ai.load_dataset('squad');
+
+// to list the available ollama models
+// if running pgai in docker
+SELECT ai.ollama_list_models('http://host.docker.internal:11434');
+
+// to manually generate embeddings
+select ai.ollama_generate
+( 'llama3.2:latest'
+, 'what is the typical weather like in Alabama in June'
+, host=>'http://host.docker.internal:11434' 
+)
+
+SELECT ai.create_vectorizer(
+     'public.documents'::regclass,
+     destination => 'document_contents_embeddings',
+     embedding => ai.embedding_ollama('nomic-embed-text', 384),
+     chunking => ai.chunking_recursive_character_text_splitter('content')
+);
+
 
 4. Configure the input directory in application.yml:
 ```yaml
