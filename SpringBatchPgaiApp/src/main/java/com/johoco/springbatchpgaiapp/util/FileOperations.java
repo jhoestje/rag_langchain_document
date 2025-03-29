@@ -67,4 +67,30 @@ public class FileOperations {
         
         return file.lastModified();
     }
+    
+    /**
+     * Ensures that a directory exists, creating it if necessary.
+     *
+     * @param directoryPath the path to the directory
+     * @return the directory File object
+     */
+    public File ensureDirectoryExists(String directoryPath) {
+        if (directoryPath == null || directoryPath.trim().isEmpty()) {
+            log.error("Cannot ensure directory exists with null or empty path");
+            throw new IllegalArgumentException("Directory path cannot be null or empty");
+        }
+        
+        File directory = new File(directoryPath);
+        if (!directory.exists()) {
+            log.info("Directory does not exist, creating: {}", directoryPath);
+            boolean created = directory.mkdirs();
+            if (created) {
+                log.info("Successfully created directory: {}", directoryPath);
+            } else {
+                log.warn("Failed to create directory: {}", directoryPath);
+            }
+        }
+        
+        return directory;
+    }
 }

@@ -1,6 +1,5 @@
 package com.johoco.springbatchpgaiapp.service;
 
-import com.johoco.springbatchpgaiapp.batch.DocumentReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
@@ -10,6 +9,8 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import com.johoco.springbatchpgaiapp.util.FileOperations;
 
 import java.io.File;
 import java.util.HashMap;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class FileWatcherService {
     private final JobLauncher jobLauncher;
     private final Job processDocumentJob;
+    private final FileOperations fileOperations;
     
     @Value("${document.input.directory}")
     private String inputDirectory;
@@ -29,11 +31,7 @@ public class FileWatcherService {
 
     @Scheduled(fixedDelayString = "${document.input.polling-interval}")
     public void watchDirectory() {
-        File directory = new File(inputDirectory);
-        if (!directory.exists()) {
-            directory.mkdirs();
-            return;
-        }
+        File directory = fileOperations.ensureDirectoryExists(inputDirectory);
 
         File[] files = directory.listFiles();
         if (files != null) {
