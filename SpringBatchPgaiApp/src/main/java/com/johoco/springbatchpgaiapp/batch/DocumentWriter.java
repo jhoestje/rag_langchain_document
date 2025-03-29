@@ -55,7 +55,7 @@ public class DocumentWriter implements ItemWriter<Document> {
                     Document existing = existingDoc.get();
                     log.debug("Found existing document: {} with id: {}", existing.getFilename(), existing.getId());
                     existing.setContent(document.getContent());
-                    existing.setEmbedding(document.getEmbedding());
+                    // existing.setEmbedding(document.getEmbedding());
                     existing.setFileSize(document.getFileSize());
                     existing.setLastModified(document.getLastModified());
                     existing.setStatus(document.getStatus());

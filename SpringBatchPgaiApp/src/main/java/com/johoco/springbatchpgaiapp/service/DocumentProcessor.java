@@ -58,12 +58,12 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
                 for (int i = 0; i < vectorList.size(); i++) {
                     vectorArray[i] = vectorList.get(i).floatValue();
                 }
-                document.setEmbedding(vectorArray);
+                //document.setEmbedding(vectorArray);
                 document.setStatus("PROCESSED");
                 log.info("Successfully generated embedding with {} dimensions for document: {}", vectorList.size(), file.getName());
             } catch (Exception e) {
                 log.error("Error generating embedding for document {}: {}", file.getName(), e.getMessage(), e);
-                document.setEmbedding(null);
+                //document.setEmbedding(null);
                 document.setStatus("ERROR_EMBEDDING");
             }
             

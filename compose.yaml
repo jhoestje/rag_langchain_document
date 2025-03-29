@@ -1,0 +1,22 @@
+name: pgai 
+services:
+ db:
+   image: timescale/timescaledb-ha:pg17
+   environment:
+     POSTGRES_PASSWORD: postgres
+   ports:
+     - "5432:5432"
+   volumes:
+     - data:/home/postgres/pgdata/data
+ vectorizer-worker:
+   image: timescale/pgai-vectorizer-worker:latest
+   environment:
+     PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:my_pwd@host.docker.internal:5432/pgaidatabase
+     OLLAMA_HOST: http://ollama:11434
+   command: [ "--poll-interval", "5s" ]
+ ollama:
+   image: ollama/ollama
+   ports:
+     - "11434:11434"
+volumes:
+ data:

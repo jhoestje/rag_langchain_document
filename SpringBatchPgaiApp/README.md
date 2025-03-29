@@ -43,7 +43,11 @@ select ai.ollama_generate
 SELECT ai.create_vectorizer(
      'public.documents'::regclass,
      destination => 'document_contents_embeddings',
-     embedding => ai.embedding_ollama('nomic-embed-text', 384),
+     embedding => ai.embedding_ollama(
+        'nomic-embed-text',
+        768,
+        'http://host.docker.internal:11434' -- Specify the host for docker host name
+    ),
      chunking => ai.chunking_recursive_character_text_splitter('content')
 );
 

@@ -21,8 +21,8 @@ public class Document {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "embedding", columnDefinition = "vector")
-    private float[] embedding;
+    // @Column(name = "embedding", columnDefinition = "vector")
+    // private float[] embedding;
 
     @Column(name = "file_size")
     private Long fileSize;
@@ -32,4 +32,7 @@ public class Document {
 
     @Column(nullable = false)
     private String status;
+
+    // @Column(name = "metadata", columnDefinition = "JSONB")
+    // private String metadata;
 }
