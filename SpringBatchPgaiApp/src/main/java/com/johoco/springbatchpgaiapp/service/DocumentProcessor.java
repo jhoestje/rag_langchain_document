@@ -41,25 +41,8 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
             document.setContent(content);
             document.setFileSize(fileOperations.getFileSize(file));
             document.setLastModified(Instant.ofEpochMilli(fileOperations.getLastModified(file)));
-            document.setStatus("PROCESSING");
 
-            try {
-                //log.debug("Generating embedding for document: {}", file.getName());
-                //Response<Embedding> embeddingResponse = embeddingModel.embed(TextSegment.from(content));
-                //Embedding embedding = embeddingResponse.content();
-                //List<Float> vectorList = embedding.vectorAsList();
-                //float[] vectorArray = new float[vectorList.size()];
-                //for (int i = 0; i < vectorList.size(); i++) {
-                //    vectorArray[i] = vectorList.get(i).floatValue();
-                //}
-                //document.setEmbedding(vectorArray);
-                document.setStatus("PROCESSED");
-                // log.info("Successfully generated embedding with {} dimensions for document: {}", vectorList.size(), file.getName());
-            } catch (Exception e) {
-                log.error("Error generating embedding for document {}: {}", file.getName(), e.getMessage(), e);
-                //document.setEmbedding(null);
-                document.setStatus("ERROR_EMBEDDING");
-            }
+            document.setStatus("PROCESSED");
             
             log.info("Successfully processed document: {} with status: {}", document.getFilename(), document.getStatus());
             return document;
