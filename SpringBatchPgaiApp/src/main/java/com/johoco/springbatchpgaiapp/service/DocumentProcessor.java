@@ -2,8 +2,6 @@ package com.johoco.springbatchpgaiapp.service;
 
 import com.johoco.springbatchpgaiapp.model.Document;
 import com.johoco.springbatchpgaiapp.util.FileOperations;
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.embedding.AllMiniLmL6V2EmbeddingModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Service;
@@ -15,12 +13,10 @@ import java.time.Instant;
 @Slf4j
 @Service
 public class DocumentProcessor implements ItemProcessor<File, Document> {
-    private final EmbeddingModel embeddingModel;
+    
     private final FileOperations fileOperations;
 
-    public DocumentProcessor(FileOperations fileOperations) {
-        log.info("Initializing DocumentProcessor with AllMiniLmL6V2EmbeddingModel and FileOperations");
-        this.embeddingModel = new AllMiniLmL6V2EmbeddingModel();
+    public DocumentProcessor(FileOperations fileOperations) {   
         this.fileOperations = fileOperations;
     }
 
