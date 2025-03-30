@@ -52,3 +52,4 @@ document:
     polling-interval: 5000
   output:
     directory: C:/workspace/rag/langchain/poc/documents/processed
+    failed-directory: C:/workspace/rag/langchain/poc/documents/failed

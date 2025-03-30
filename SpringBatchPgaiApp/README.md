@@ -60,6 +60,7 @@ document:
     polling-interval: 5000  # milliseconds
   output:
     directory: c:/data/documents/processed
+    failed-directory: c:/data/documents/failed
 ```
 
 ## Building and Running
@@ -81,7 +82,8 @@ mvn spring-boot:run
    - Detect new files
    - Process each file in its own Spring Batch job
    - Store document content and metadata in PostgreSQL
-   - Move processed files to the output directory
+   - Move processed files to the output directory if successful
+   - Move failed files to the failed directory if processing fails
 
 ## Features
 
@@ -90,7 +92,8 @@ mvn spring-boot:run
 - Centralized file operations through dedicated service
 - Batch processing with Spring Batch
 - Automatic update of modified documents
-- Post-processing file movement to prevent duplicate processing
+- Post-processing file movement with success/failure handling
+- Timestamp-based file renaming to prevent conflicts
 
 ## Architecture
 
@@ -100,7 +103,7 @@ mvn spring-boot:run
 - **FileOperations**: Centralized service for file-related operations (reading content, getting metadata, ensuring directories exist, moving files)
 - **DocumentProcessor**: Processes each document and prepares it for storage
 - **DocumentReader**: Reads a single file specified by job parameters
-- **DocumentWriter**: Writes processed documents to the database and moves processed files
+- **DocumentWriter**: Writes processed documents to the database and moves processed files based on job success/failure
 
 ### Processing Flow
 
@@ -109,6 +112,8 @@ mvn spring-boot:run
 3. DocumentReader reads the specified file
 4. DocumentProcessor processes the file content
 5. DocumentWriter stores the document in the database
-6. After successful processing, the file is moved to the output directory
+6. After processing:
+   - If successful: the file is moved to the output directory
+   - If failed: the file is moved to the failed directory
 
 This architecture ensures that each file is processed independently, providing better isolation and error handling. Moving processed files prevents duplicate processing and maintains a clean workflow.

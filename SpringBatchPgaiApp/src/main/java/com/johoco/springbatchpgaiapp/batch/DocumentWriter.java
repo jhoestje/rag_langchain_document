@@ -6,6 +6,7 @@ import com.johoco.springbatchpgaiapp.util.FileOperations;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.annotation.AfterStep;
@@ -33,6 +34,9 @@ public class DocumentWriter implements ItemWriter<Document> {
     
     @Value("${document.output.directory}")
     private String outputDirectory;
+    
+    @Value("${document.output.failed-directory}")
+    private String failedDirectory;
     
     private String currentFileName;
     
@@ -100,21 +104,37 @@ public class DocumentWriter implements ItemWriter<Document> {
     }
     
     @AfterStep
-    public void afterStep(StepExecution stepExecution) {
-        if (currentFileName != null) {
-            try {
-                // Move the processed file to the output directory
-                File inputFile = new File(inputDirectory, currentFileName);
-                if (inputFile.exists()) {
-                    File movedFile = fileOperations.moveToProcessed(inputFile, outputDirectory);
-                    log.info("Successfully moved processed file to: {}", movedFile.getAbsolutePath());
-                } else {
-                    log.warn("Could not find file to move: {}", inputFile.getAbsolutePath());
-                }
-            } catch (Exception e) {
-                log.error("Error moving processed file {}: {}", currentFileName, e.getMessage(), e);
-                // We don't want to fail the job if moving the file fails
+    public ExitStatus afterStep(StepExecution stepExecution) {
+        if (currentFileName == null) {
+            log.warn("No fileName parameter found in job parameters");
+            return stepExecution.getExitStatus();
+        }
+        
+        try {
+            File inputFile = new File(inputDirectory, currentFileName);
+            if (!inputFile.exists()) {
+                log.warn("Could not find file to move: {}", inputFile.getAbsolutePath());
+                return stepExecution.getExitStatus();
+            }
+            
+            boolean isSuccessful = ExitStatus.COMPLETED.equals(stepExecution.getExitStatus());
+            String targetDirectory = isSuccessful ? outputDirectory : failedDirectory;
+            
+            log.info("Step execution status: {}, moving file to {}", 
+                    stepExecution.getExitStatus().getExitCode(), 
+                    targetDirectory);
+            
+            File movedFile = fileOperations.moveFile(inputFile, targetDirectory, !isSuccessful);
+            log.info("Successfully moved file to: {}", movedFile.getAbsolutePath());
+            
+        } catch (Exception e) {
+            log.error("Error moving file {}: {}", currentFileName, e.getMessage(), e);
+            // We don't want to fail the job if moving the file fails, but we should mark it as a warning
+            if (ExitStatus.COMPLETED.equals(stepExecution.getExitStatus())) {
+                return ExitStatus.COMPLETED.addExitDescription("File processed successfully but could not be moved: " + e.getMessage());
             }
         }
+        
+        return stepExecution.getExitStatus();
     }
 }

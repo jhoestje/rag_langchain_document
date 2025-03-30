@@ -110,11 +110,7 @@ public class FileOperations {
         
         // If the destination file already exists, append a timestamp to make it unique
         if (destFile.exists()) {
-            String baseName = FilenameUtils.getBaseName(file.getName());
-            String extension = FilenameUtils.getExtension(file.getName());
-            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-            String newFileName = baseName + "_" + timestamp + (extension.isEmpty() ? "" : "." + extension);
-            destFile = new File(outputDirectory, newFileName);
+            destFile = createUniqueFile(file, outputDirectory);
         }
         
         // Move the file
@@ -122,5 +118,78 @@ public class FileOperations {
         Files.move(file.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         
         return destFile;
+    }
+    
+    /**
+     * Moves a file to the failed directory.
+     * 
+     * @param file the file to move
+     * @param failedDirectory the directory to move failed files to
+     * @return the moved file
+     * @throws IOException if there is an error moving the file
+     */
+    public File moveToFailed(File file, String failedDirectory) throws IOException {
+        // Ensure the failed directory exists
+        ensureDirectoryExists(failedDirectory);
+        
+        // Create the destination file
+        File destFile = new File(failedDirectory, file.getName());
+        
+        // If the destination file already exists, append a timestamp to make it unique
+        if (destFile.exists()) {
+            destFile = createUniqueFile(file, failedDirectory);
+        }
+        
+        // Move the file
+        log.info("Moving failed file {} to {}", file.getAbsolutePath(), destFile.getAbsolutePath());
+        Files.move(file.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        
+        return destFile;
+    }
+    
+    /**
+     * Generic method to move a file to a target directory.
+     * 
+     * @param file the file to move
+     * @param targetDirectory the directory to move the file to
+     * @param isFailedFile whether this is a failed file (for logging purposes)
+     * @return the moved file
+     * @throws IOException if there is an error moving the file
+     */
+    public File moveFile(File file, String targetDirectory, boolean isFailedFile) throws IOException {
+        // Ensure the target directory exists
+        ensureDirectoryExists(targetDirectory);
+        
+        // Create the destination file
+        File destFile = new File(targetDirectory, file.getName());
+        
+        // If the destination file already exists, append a timestamp to make it unique
+        if (destFile.exists()) {
+            destFile = createUniqueFile(file, targetDirectory);
+        }
+        
+        // Move the file
+        log.info("Moving {} file {} to {}", 
+                isFailedFile ? "failed" : "processed", 
+                file.getAbsolutePath(), 
+                destFile.getAbsolutePath());
+        Files.move(file.toPath(), destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        
+        return destFile;
+    }
+    
+    /**
+     * Creates a unique file name by appending a timestamp if the file already exists.
+     * 
+     * @param file the original file
+     * @param targetDirectory the directory where the file will be placed
+     * @return a File object with a unique name
+     */
+    private File createUniqueFile(File file, String targetDirectory) {
+        String baseName = FilenameUtils.getBaseName(file.getName());
+        String extension = FilenameUtils.getExtension(file.getName());
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String newFileName = baseName + "_" + timestamp + (extension.isEmpty() ? "" : "." + extension);
+        return new File(targetDirectory, newFileName);
     }
 }
