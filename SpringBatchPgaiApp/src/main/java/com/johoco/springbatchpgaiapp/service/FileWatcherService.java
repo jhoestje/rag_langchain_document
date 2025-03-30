@@ -13,8 +13,6 @@ import org.springframework.stereotype.Service;
 import com.johoco.springbatchpgaiapp.util.FileOperations;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -27,8 +25,6 @@ public class FileWatcherService {
     @Value("${document.input.directory}")
     private String inputDirectory;
     
-    private final Map<String, Long> processedFiles = new HashMap<>();
-
     @Scheduled(fixedDelayString = "${document.input.polling-interval}")
     public void watchDirectory() {
         File directory = fileOperations.ensureDirectoryExists(inputDirectory);
@@ -37,23 +33,28 @@ public class FileWatcherService {
         if (files != null) {
             for (File file : files) {
                 if (file.isFile()) {
-                    Long lastModified = processedFiles.get(file.getName());
-                    if (lastModified == null || lastModified < file.lastModified()) {
-                        try {
-                            log.info("Processing file: {}", file.getName());
-                            JobParameters params = new JobParametersBuilder()
-                                .addString("fileName", file.getName())
-                                .addLong("timestamp", System.currentTimeMillis())
-                                .toJobParameters();
-                            jobLauncher.run(processDocumentJob, params);
-                            processedFiles.put(file.getName(), file.lastModified());
-                            log.info("Successfully processed file: {}", file.getName());
-                        } catch (Exception e) {
-                            log.error("Error processing file {}: {}", file.getName(), e.getMessage());
-                        }
-                    }
+                    processFile(file);
                 }
             }
+        }
+    }
+    
+    /**
+     * Process a single file by launching a Spring Batch job.
+     * 
+     * @param file The file to process
+     */
+    private void processFile(File file) {
+        try {
+            log.info("Processing file: {}", file.getName());
+            JobParameters params = new JobParametersBuilder()
+                .addString("fileName", file.getName())
+                .addLong("timestamp", System.currentTimeMillis())
+                .toJobParameters();
+            jobLauncher.run(processDocumentJob, params);
+            log.info("Successfully submitted job for file: {}", file.getName());
+        } catch (Exception e) {
+            log.error("Error processing file {}: {}", file.getName(), e.getMessage());
         }
     }
 }
