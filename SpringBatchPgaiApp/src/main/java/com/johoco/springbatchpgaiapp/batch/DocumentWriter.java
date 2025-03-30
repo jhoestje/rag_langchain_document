@@ -1,6 +1,7 @@
 package com.johoco.springbatchpgaiapp.batch;
 
 import com.johoco.springbatchpgaiapp.model.Document;
+import com.johoco.springbatchpgaiapp.model.DocumentMetadata;
 import com.johoco.springbatchpgaiapp.model.DocumentStatus;
 import com.johoco.springbatchpgaiapp.repository.DocumentRepository;
 import com.johoco.springbatchpgaiapp.util.FileOperations;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
+import java.time.Instant;
 import java.util.Optional;
 
 @Slf4j
@@ -119,6 +121,17 @@ public class DocumentWriter implements ItemWriter<Document> {
     private void markDocumentAsFailed(Document document, String reason) {
         try {
             document.setStatus(DocumentStatus.FAILED);
+            
+            // Update metadata with failure information
+            DocumentMetadata metadata = document.getMetadata();
+            if (metadata == null) {
+                metadata = DocumentMetadata.builder()
+                        .originalFilename(document.getFilename())
+                        .processingTime(Instant.now())
+                        .build();
+                document.setMetadata(metadata);
+            }
+            
             Document savedDocument = documentRepository.save(document);
             log.info("Marked document as FAILED due to {}: {}", reason, savedDocument.getFilename());
         } catch (Exception saveEx) {

@@ -1,10 +1,12 @@
 package com.johoco.springbatchpgaiapp.service;
 
 import com.johoco.springbatchpgaiapp.model.Document;
+import com.johoco.springbatchpgaiapp.model.DocumentMetadata;
 import com.johoco.springbatchpgaiapp.model.DocumentStatus;
 import com.johoco.springbatchpgaiapp.util.FileOperations;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -16,6 +18,12 @@ import java.time.Instant;
 public class DocumentProcessor implements ItemProcessor<File, Document> {
     
     private final FileOperations fileOperations;
+    
+    @Value("${spring.application.name:SpringBatchPgaiApp}")
+    private String applicationName;
+    
+    @Value("${spring.application.version:1.0.0}")
+    private String applicationVersion;
 
     public DocumentProcessor(FileOperations fileOperations) {   
         this.fileOperations = fileOperations;
@@ -42,8 +50,16 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
             document.setContent(content);
             document.setFileSize(fileOperations.getFileSize(file));
             document.setLastModified(Instant.ofEpochMilli(fileOperations.getLastModified(file)));
-
             document.setStatus(DocumentStatus.PROCESSED);
+            
+            // Create and set metadata
+            DocumentMetadata metadata = DocumentMetadata.builder()
+                    .originalFilename(file.getName())
+                    .processingTime(Instant.now())
+                    .processorName(applicationName)
+                    .processorVersion(applicationVersion)
+                    .build();
+            document.setMetadata(metadata);
             
             log.info("Successfully processed document: {} with status: {}", document.getFilename(), document.getStatus());
             return document;
