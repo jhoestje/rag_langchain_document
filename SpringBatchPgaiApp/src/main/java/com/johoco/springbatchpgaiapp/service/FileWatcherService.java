@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.johoco.springbatchpgaiapp.util.FileOperations;
 
 import java.io.File;
+import java.io.IOException;
 
 @Slf4j
 @Service
@@ -27,15 +28,19 @@ public class FileWatcherService {
     
     @Scheduled(fixedDelayString = "${document.input.polling-interval}")
     public void watchDirectory() {
-        File directory = fileOperations.ensureDirectoryExists(inputDirectory);
+        try {
+            File directory = fileOperations.ensureDirectoryExists(inputDirectory);
 
-        File[] files = directory.listFiles();
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile()) {
-                    processFile(file);
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isFile()) {
+                        processFile(file);
+                    }
                 }
             }
+        } catch (IOException e) {
+            log.error("Error ensuring directory exists: {}", e.getMessage(), e);
         }
     }
     

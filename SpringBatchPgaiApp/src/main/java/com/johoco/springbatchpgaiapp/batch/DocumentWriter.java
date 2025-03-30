@@ -2,16 +2,23 @@ package com.johoco.springbatchpgaiapp.batch;
 
 import com.johoco.springbatchpgaiapp.model.Document;
 import com.johoco.springbatchpgaiapp.repository.DocumentRepository;
+import com.johoco.springbatchpgaiapp.util.FileOperations;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.annotation.AfterStep;
+import org.springframework.batch.core.annotation.BeforeStep;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.util.Optional;
 
 @Slf4j
@@ -19,10 +26,26 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class DocumentWriter implements ItemWriter<Document> {
     private final DocumentRepository documentRepository;
-
+    private final FileOperations fileOperations;
+    
+    @Value("${document.input.directory}")
+    private String inputDirectory;
+    
+    @Value("${document.output.directory}")
+    private String outputDirectory;
+    
+    private String currentFileName;
+    
     @PostConstruct
     public void init() {
         log.info("DocumentWriter initialized with documentRepository: {}", documentRepository != null ? "injected" : "null");
+    }
+    
+    @BeforeStep
+    public void beforeStep(StepExecution stepExecution) {
+        JobParameters jobParameters = stepExecution.getJobParameters();
+        this.currentFileName = jobParameters.getString("fileName");
+        log.info("DocumentWriter initialized with fileName parameter: {}", currentFileName);
     }
 
     @Override
@@ -33,7 +56,8 @@ public class DocumentWriter implements ItemWriter<Document> {
             throw new IllegalStateException("DocumentRepository is not initialized");
         }
         
-        log.debug("Writing batch of {} documents", documents.size());
+        int size = documents.size();
+        log.debug("Writing {} document{}", size, size == 1 ? "" : "s");
         
         for (Document document : documents) {
             try {
@@ -55,7 +79,6 @@ public class DocumentWriter implements ItemWriter<Document> {
                     Document existing = existingDoc.get();
                     log.debug("Found existing document: {} with id: {}", existing.getFilename(), existing.getId());
                     existing.setContent(document.getContent());
-                    // existing.setEmbedding(document.getEmbedding());
                     existing.setFileSize(document.getFileSize());
                     existing.setLastModified(document.getLastModified());
                     existing.setStatus(document.getStatus());
@@ -64,25 +87,34 @@ public class DocumentWriter implements ItemWriter<Document> {
                 } else {
                     log.debug("No existing document found for filename: {}, creating new", document.getFilename());
                     savedDocument = documentRepository.save(document);
-                    log.info("Successfully created new document: {} with id: {}", savedDocument.getFilename(), savedDocument.getId());
-                }
-                
-                if (savedDocument == null || savedDocument.getId() == null) {
-                    String error = String.format("Failed to save document: %s. SavedDocument is null or has no ID", document.getFilename());
-                    log.error(error);
-                    throw new RuntimeException(error);
+                    log.info("Successfully saved new document: {} with id: {}", savedDocument.getFilename(), savedDocument.getId());
                 }
             } catch (DataIntegrityViolationException e) {
-                String error = String.format("Database error saving document %s: %s", document.getFilename(), e.getMessage());
-                log.error(error, e);
-                throw new RuntimeException(error, e);
+                log.error("Data integrity violation saving document {}: {}", document.getFilename(), e.getMessage(), e);
+                throw e;
             } catch (Exception e) {
-                String error = String.format("Error saving document %s: %s", document.getFilename(), e.getMessage());
-                log.error(error, e);
-                throw new RuntimeException(error, e);
+                log.error("Error saving document {}: {}", document.getFilename(), e.getMessage(), e);
+                throw new RuntimeException("Error saving document: " + document.getFilename(), e);
             }
         }
-        
-        log.debug("Successfully processed batch of {} documents", documents.size());
+    }
+    
+    @AfterStep
+    public void afterStep(StepExecution stepExecution) {
+        if (currentFileName != null) {
+            try {
+                // Move the processed file to the output directory
+                File inputFile = new File(inputDirectory, currentFileName);
+                if (inputFile.exists()) {
+                    File movedFile = fileOperations.moveToProcessed(inputFile, outputDirectory);
+                    log.info("Successfully moved processed file to: {}", movedFile.getAbsolutePath());
+                } else {
+                    log.warn("Could not find file to move: {}", inputFile.getAbsolutePath());
+                }
+            } catch (Exception e) {
+                log.error("Error moving processed file {}: {}", currentFileName, e.getMessage(), e);
+                // We don't want to fail the job if moving the file fails
+            }
+        }
     }
 }
