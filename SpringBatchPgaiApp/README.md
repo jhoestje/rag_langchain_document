@@ -76,15 +76,34 @@ mvn spring-boot:run
 
 1. Place documents in the configured input directory
 2. The application will automatically:
-   - Detect new or modified files
-   - Process them using pgAI
-   - Generate embeddings
-   - Store them in PostgreSQL with vector search capabilities
+   - Detect new files
+   - Process each file in its own Spring Batch job
+   - Store document content and metadata in PostgreSQL
 
 ## Features
 
 - Automatic file watching and processing
-- Document embedding generation using AllMiniLmL6V2
-- Vector similarity search support
+- Single-file-per-job processing for better isolation and reliability
+- Centralized file operations through dedicated service
 - Batch processing with Spring Batch
 - Automatic update of modified documents
+
+## Architecture
+
+### Key Components
+
+- **FileWatcherService**: Monitors the input directory and launches a job for each file
+- **FileOperations**: Centralized service for file-related operations (reading content, getting metadata, ensuring directories exist)
+- **DocumentProcessor**: Processes each document and prepares it for storage
+- **DocumentReader**: Reads a single file specified by job parameters
+- **DocumentWriter**: Writes processed documents to the database
+
+### Processing Flow
+
+1. FileWatcherService polls the input directory at configured intervals
+2. For each file, a separate Spring Batch job is launched with the filename as a parameter
+3. DocumentReader reads the specified file
+4. DocumentProcessor processes the file content
+5. DocumentWriter stores the document in the database
+
+This architecture ensures that each file is processed independently, providing better isolation and error handling.
