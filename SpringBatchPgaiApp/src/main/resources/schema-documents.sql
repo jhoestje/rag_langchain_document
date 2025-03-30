@@ -9,5 +9,6 @@ CREATE TABLE IF NOT EXISTS documents (
     file_size BIGINT,
     last_modified TIMESTAMP WITH TIME ZONE,
     status VARCHAR(50) NOT NULL,
+    metadata JSONB,
     CONSTRAINT documents_filename_unique UNIQUE (filename)
 );
