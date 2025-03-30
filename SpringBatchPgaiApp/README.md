@@ -52,12 +52,14 @@ SELECT ai.create_vectorizer(
 );
 
 
-4. Configure the input directory in application.yml:
+4. Configure the input and output directories in application.yml:
 ```yaml
 document:
   input:
     directory: c:/data/documents
     polling-interval: 5000  # milliseconds
+  output:
+    directory: c:/data/documents/processed
 ```
 
 ## Building and Running
@@ -79,6 +81,7 @@ mvn spring-boot:run
    - Detect new files
    - Process each file in its own Spring Batch job
    - Store document content and metadata in PostgreSQL
+   - Move processed files to the output directory
 
 ## Features
 
@@ -87,16 +90,17 @@ mvn spring-boot:run
 - Centralized file operations through dedicated service
 - Batch processing with Spring Batch
 - Automatic update of modified documents
+- Post-processing file movement to prevent duplicate processing
 
 ## Architecture
 
 ### Key Components
 
 - **FileWatcherService**: Monitors the input directory and launches a job for each file
-- **FileOperations**: Centralized service for file-related operations (reading content, getting metadata, ensuring directories exist)
+- **FileOperations**: Centralized service for file-related operations (reading content, getting metadata, ensuring directories exist, moving files)
 - **DocumentProcessor**: Processes each document and prepares it for storage
 - **DocumentReader**: Reads a single file specified by job parameters
-- **DocumentWriter**: Writes processed documents to the database
+- **DocumentWriter**: Writes processed documents to the database and moves processed files
 
 ### Processing Flow
 
@@ -105,5 +109,6 @@ mvn spring-boot:run
 3. DocumentReader reads the specified file
 4. DocumentProcessor processes the file content
 5. DocumentWriter stores the document in the database
+6. After successful processing, the file is moved to the output directory
 
-This architecture ensures that each file is processed independently, providing better isolation and error handling.
+This architecture ensures that each file is processed independently, providing better isolation and error handling. Moving processed files prevents duplicate processing and maintains a clean workflow.
