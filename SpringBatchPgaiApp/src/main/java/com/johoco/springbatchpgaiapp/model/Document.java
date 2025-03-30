@@ -2,6 +2,7 @@ package com.johoco.springbatchpgaiapp.model;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -33,7 +34,7 @@ public class Document {
     @Enumerated(EnumType.STRING)
     private DocumentStatus status;
 
-    @Column(name = "metadata", columnDefinition = "TEXT")
+    @Column(name = "metadata", columnDefinition = "JSONB")
     private String metadataJson;
     
     @Transient
@@ -47,7 +48,9 @@ public class Document {
     public DocumentMetadata getMetadata() {
         if (metadata == null && metadataJson != null && !metadataJson.isEmpty()) {
             try {
-                metadata = new ObjectMapper().readValue(metadataJson, DocumentMetadata.class);
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.registerModule(new JavaTimeModule());
+                metadata = mapper.readValue(metadataJson, DocumentMetadata.class);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Error deserializing metadata", e);
             }
@@ -64,7 +67,9 @@ public class Document {
         this.metadata = metadata;
         if (metadata != null) {
             try {
-                this.metadataJson = new ObjectMapper().writeValueAsString(metadata);
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.registerModule(new JavaTimeModule());
+                this.metadataJson = mapper.writeValueAsString(metadata);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Error serializing metadata", e);
             }
