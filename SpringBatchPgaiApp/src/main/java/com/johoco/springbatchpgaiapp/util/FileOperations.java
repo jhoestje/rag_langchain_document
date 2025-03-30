@@ -105,13 +105,8 @@ public class FileOperations {
         // Ensure the output directory exists
         ensureDirectoryExists(outputDirectory);
         
-        // Create the destination file
-        File destFile = new File(outputDirectory, file.getName());
-        
-        // If the destination file already exists, append a timestamp to make it unique
-        if (destFile.exists()) {
-            destFile = createUniqueFile(file, outputDirectory);
-        }
+        // Always create a unique file with timestamp
+        File destFile = createUniqueFile(file, outputDirectory);
         
         // Move the file
         log.info("Moving file {} to {}", file.getAbsolutePath(), destFile.getAbsolutePath());
@@ -132,13 +127,8 @@ public class FileOperations {
         // Ensure the failed directory exists
         ensureDirectoryExists(failedDirectory);
         
-        // Create the destination file
-        File destFile = new File(failedDirectory, file.getName());
-        
-        // If the destination file already exists, append a timestamp to make it unique
-        if (destFile.exists()) {
-            destFile = createUniqueFile(file, failedDirectory);
-        }
+        // Always create a unique file with timestamp
+        File destFile = createUniqueFile(file, failedDirectory);
         
         // Move the file
         log.info("Moving failed file {} to {}", file.getAbsolutePath(), destFile.getAbsolutePath());
@@ -160,13 +150,8 @@ public class FileOperations {
         // Ensure the target directory exists
         ensureDirectoryExists(targetDirectory);
         
-        // Create the destination file
-        File destFile = new File(targetDirectory, file.getName());
-        
-        // If the destination file already exists, append a timestamp to make it unique
-        if (destFile.exists()) {
-            destFile = createUniqueFile(file, targetDirectory);
-        }
+        // Always create a unique file with timestamp
+        File destFile = createUniqueFile(file, targetDirectory);
         
         // Move the file
         log.info("Moving {} file {} to {}", 
@@ -188,8 +173,8 @@ public class FileOperations {
     private File createUniqueFile(File file, String targetDirectory) {
         String baseName = FilenameUtils.getBaseName(file.getName());
         String extension = FilenameUtils.getExtension(file.getName());
-        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String newFileName = baseName + "_" + timestamp + (extension.isEmpty() ? "" : "." + extension);
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
+        String newFileName = baseName + "." + timestamp + (extension.isEmpty() ? "" : "." + extension);
         return new File(targetDirectory, newFileName);
     }
 }
