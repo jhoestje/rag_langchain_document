@@ -42,7 +42,7 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
             document.setFileSize(fileOperations.getFileSize(file));
             document.setLastModified(Instant.ofEpochMilli(fileOperations.getLastModified(file)));
 
-            document.setStatus("PROCESSED");
+            document.setStatus(Document.STATUS_PROCESSED);
             
             log.info("Successfully processed document: {} with status: {}", document.getFilename(), document.getStatus());
             return document;

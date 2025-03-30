@@ -95,11 +95,29 @@ public class DocumentWriter implements ItemWriter<Document> {
                 }
             } catch (DataIntegrityViolationException e) {
                 log.error("Data integrity violation saving document {}: {}", document.getFilename(), e.getMessage(), e);
+                markDocumentAsFailed(document, "data integrity violation");
                 throw e;
             } catch (Exception e) {
                 log.error("Error saving document {}: {}", document.getFilename(), e.getMessage(), e);
+                markDocumentAsFailed(document, "error");
                 throw new RuntimeException("Error saving document: " + document.getFilename(), e);
             }
+        }
+    }
+    
+    /**
+     * Marks a document as failed and attempts to save it to the database.
+     * 
+     * @param document the document to mark as failed
+     * @param reason the reason for the failure (for logging purposes)
+     */
+    private void markDocumentAsFailed(Document document, String reason) {
+        try {
+            document.setStatus(Document.STATUS_FAILED);
+            Document savedDocument = documentRepository.save(document);
+            log.info("Marked document as FAILED due to {}: {}", reason, savedDocument.getFilename());
+        } catch (Exception saveEx) {
+            log.error("Could not save document with FAILED status: {}", saveEx.getMessage(), saveEx);
         }
     }
     
