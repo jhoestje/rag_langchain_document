@@ -1,6 +1,7 @@
 package com.johoco.springbatchpgaiapp.batch;
 
 import com.johoco.springbatchpgaiapp.model.Document;
+import com.johoco.springbatchpgaiapp.model.DocumentStatus;
 import com.johoco.springbatchpgaiapp.repository.DocumentRepository;
 import com.johoco.springbatchpgaiapp.util.FileOperations;
 import jakarta.annotation.PostConstruct;
@@ -95,11 +96,15 @@ public class DocumentWriter implements ItemWriter<Document> {
                 }
             } catch (DataIntegrityViolationException e) {
                 log.error("Data integrity violation saving document {}: {}", document.getFilename(), e.getMessage(), e);
+                // Mark the document as failed
                 markDocumentAsFailed(document, "data integrity violation");
+                // Still throw the exception to fail the job
                 throw e;
             } catch (Exception e) {
                 log.error("Error saving document {}: {}", document.getFilename(), e.getMessage(), e);
+                // Mark the document as failed
                 markDocumentAsFailed(document, "error");
+                // Still throw the exception to fail the job
                 throw new RuntimeException("Error saving document: " + document.getFilename(), e);
             }
         }
@@ -113,7 +118,7 @@ public class DocumentWriter implements ItemWriter<Document> {
      */
     private void markDocumentAsFailed(Document document, String reason) {
         try {
-            document.setStatus(Document.STATUS_FAILED);
+            document.setStatus(DocumentStatus.FAILED);
             Document savedDocument = documentRepository.save(document);
             log.info("Marked document as FAILED due to {}: {}", reason, savedDocument.getFilename());
         } catch (Exception saveEx) {

@@ -11,11 +11,6 @@ import java.time.Instant;
     @UniqueConstraint(name = "uk_documents_filename", columnNames = "filename")
 })
 public class Document {
-    // Document status constants
-    public static final String STATUS_NEW = "NEW";
-    public static final String STATUS_PROCESSED = "PROCESSED";
-    public static final String STATUS_FAILED = "FAILED";
-    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -36,7 +31,8 @@ public class Document {
     private Instant lastModified;
 
     @Column(nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private DocumentStatus status;
 
     // @Column(name = "metadata", columnDefinition = "JSONB")
     // private String metadata;

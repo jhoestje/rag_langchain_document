@@ -1,6 +1,7 @@
 package com.johoco.springbatchpgaiapp.service;
 
 import com.johoco.springbatchpgaiapp.model.Document;
+import com.johoco.springbatchpgaiapp.model.DocumentStatus;
 import com.johoco.springbatchpgaiapp.util.FileOperations;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ItemProcessor;
@@ -42,7 +43,7 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
             document.setFileSize(fileOperations.getFileSize(file));
             document.setLastModified(Instant.ofEpochMilli(fileOperations.getLastModified(file)));
 
-            document.setStatus(Document.STATUS_PROCESSED);
+            document.setStatus(DocumentStatus.PROCESSED);
             
             log.info("Successfully processed document: {} with status: {}", document.getFilename(), document.getStatus());
             return document;
