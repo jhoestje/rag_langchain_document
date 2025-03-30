@@ -23,9 +23,6 @@ public class Document {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    // @Column(name = "embedding", columnDefinition = "vector")
-    // private float[] embedding;
-
     @Column(name = "file_size")
     private Long fileSize;
 
