@@ -1,14 +1,19 @@
 package com.johoco.springbatchpgaiapp.batch;
 
 import com.johoco.springbatchpgaiapp.model.Document;
+import com.johoco.springbatchpgaiapp.model.DocumentMetadata;
+import com.johoco.springbatchpgaiapp.model.DocumentStatus;
 import com.johoco.springbatchpgaiapp.repository.DocumentRepository;
-import com.johoco.springbatchpgaiapp.service.DocumentProcessor;
-import com.johoco.springbatchpgaiapp.service.FileManagementService;
+import com.johoco.springbatchpgaiapp.util.FileOperations;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.batch.core.ExitStatus;
+import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.item.Chunk;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.File;
 import java.time.Instant;
@@ -16,6 +21,12 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
 import static org.mockito.Mockito.*;
 
 class DocumentWriterTest {
@@ -23,18 +34,23 @@ class DocumentWriterTest {
     @Mock
     private DocumentRepository documentRepository;
     
-    @Mock
-    private DocumentProcessor documentProcessor;
+    // DocumentProcessor is not used in DocumentWriter
     
     @Mock
-    private FileManagementService fileManagementService;
+    private FileOperations fileOperations;
     
     private DocumentWriter documentWriter;
     
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        documentWriter = new DocumentWriter(documentRepository, documentProcessor, fileManagementService);
+        documentWriter = new DocumentWriter(documentRepository, fileOperations);
+        
+        // Set the required fields via reflection since they're normally set by @Value
+        ReflectionTestUtils.setField(documentWriter, "inputDirectory", "input");
+        ReflectionTestUtils.setField(documentWriter, "outputDirectory", "output");
+        ReflectionTestUtils.setField(documentWriter, "failedDirectory", "failed");
+        ReflectionTestUtils.setField(documentWriter, "currentFileName", "test.txt");
     }
     
     @Test
@@ -45,18 +61,21 @@ class DocumentWriterTest {
         
         File mockFile = mock(File.class);
         when(mockFile.exists()).thenReturn(true);
-        when(documentProcessor.getOriginalFile("test.txt")).thenReturn(mockFile);
-        when(fileManagementService.moveToSuccessDirectory(mockFile)).thenReturn(true);
+        when(fileOperations.moveFile(any(File.class), eq("output"), eq(false))).thenReturn(mockFile);
         when(documentRepository.save(any(Document.class))).thenReturn(document);
+        
+        // Set up StepExecution with COMPLETED status for afterStep
+        StepExecution stepExecution = new StepExecution("testStep", new JobExecution(1L));
+        stepExecution.setExitStatus(ExitStatus.COMPLETED);
+        ReflectionTestUtils.setField(documentWriter, "currentFileName", "test.txt");
         
         // When
         documentWriter.write(new Chunk<>(Collections.singletonList(document)));
+        documentWriter.afterStep(stepExecution);
         
         // Then
         verify(documentRepository).save(document);
-        verify(documentProcessor).getOriginalFile("test.txt");
-        verify(fileManagementService).moveToSuccessDirectory(mockFile);
-        verify(documentProcessor).removeTrackedFile("test.txt");
+        verify(fileOperations).moveFile(any(File.class), eq("output"), eq(false));
     }
     
     @Test
@@ -68,14 +87,6 @@ class DocumentWriterTest {
         Document doc2 = createTestDocument("test2.txt", "Test content 2");
         doc2.setId(2L); // Set an ID for doc2
         
-        File mockFile1 = mock(File.class);
-        File mockFile2 = mock(File.class);
-        when(mockFile1.exists()).thenReturn(true);
-        when(mockFile2.exists()).thenReturn(true);
-        
-        when(documentProcessor.getOriginalFile("test1.txt")).thenReturn(mockFile1);
-        when(documentProcessor.getOriginalFile("test2.txt")).thenReturn(mockFile2);
-        when(fileManagementService.moveToSuccessDirectory(any(File.class))).thenReturn(true);
         when(documentRepository.save(any(Document.class))).thenAnswer(invocation -> {
             Document doc = invocation.getArgument(0);
             return doc.getFilename().equals("test1.txt") ? doc1 : doc2;
@@ -86,12 +97,6 @@ class DocumentWriterTest {
         
         // Then
         verify(documentRepository, times(2)).save(any(Document.class));
-        verify(documentProcessor).getOriginalFile("test1.txt");
-        verify(documentProcessor).getOriginalFile("test2.txt");
-        verify(fileManagementService).moveToSuccessDirectory(mockFile1);
-        verify(fileManagementService).moveToSuccessDirectory(mockFile2);
-        verify(documentProcessor).removeTrackedFile("test1.txt");
-        verify(documentProcessor).removeTrackedFile("test2.txt");
     }
     
     @Test
@@ -99,18 +104,27 @@ class DocumentWriterTest {
         // Given
         Document document = createTestDocument("missing.txt", "Missing file content");
         document.setId(1L); // Set an ID for the document
-        
-        when(documentProcessor.getOriginalFile("missing.txt")).thenReturn(null);
         when(documentRepository.save(any(Document.class))).thenReturn(document);
+        
+        // Set up StepExecution with COMPLETED status for afterStep
+        StepExecution stepExecution = new StepExecution("testStep", new JobExecution(1L));
+        stepExecution.setExitStatus(ExitStatus.COMPLETED);
+        ReflectionTestUtils.setField(documentWriter, "currentFileName", "missing.txt");
+        
+        // Mock file.exists() to return false to simulate missing file
+        File mockFile = mock(File.class);
+        when(mockFile.exists()).thenReturn(false);
+        when(mockFile.getAbsolutePath()).thenReturn("input/missing.txt");
+        doReturn(mockFile).when(fileOperations).moveFile(any(File.class), anyString(), anyBoolean());
         
         // When
         documentWriter.write(new Chunk<>(Collections.singletonList(document)));
+        ExitStatus exitStatus = documentWriter.afterStep(stepExecution);
         
         // Then
         verify(documentRepository).save(document);
-        verify(documentProcessor).getOriginalFile("missing.txt");
-        verify(fileManagementService, never()).moveToSuccessDirectory(any(File.class));
-        verify(documentProcessor, never()).removeTrackedFile("missing.txt");
+        verify(fileOperations, never()).moveFile(any(File.class), anyString(), anyBoolean());
+        assertEquals(ExitStatus.COMPLETED, exitStatus);
     }
     
     @Test
@@ -121,18 +135,24 @@ class DocumentWriterTest {
         
         File mockFile = mock(File.class);
         when(mockFile.exists()).thenReturn(true);
-        when(documentProcessor.getOriginalFile("error.txt")).thenReturn(mockFile);
-        when(fileManagementService.moveToSuccessDirectory(mockFile)).thenReturn(false);
+        when(mockFile.getAbsolutePath()).thenReturn("input/error.txt");
+        when(fileOperations.moveFile(any(File.class), eq("output"), eq(false)))
+            .thenThrow(new IOException("Failed to move file"));
         when(documentRepository.save(any(Document.class))).thenReturn(document);
+        
+        // Set up StepExecution with COMPLETED status for afterStep
+        StepExecution stepExecution = new StepExecution("testStep", new JobExecution(1L));
+        stepExecution.setExitStatus(ExitStatus.COMPLETED);
+        ReflectionTestUtils.setField(documentWriter, "currentFileName", "error.txt");
         
         // When
         documentWriter.write(new Chunk<>(Collections.singletonList(document)));
+        ExitStatus exitStatus = documentWriter.afterStep(stepExecution);
         
         // Then
         verify(documentRepository).save(document);
-        verify(documentProcessor).getOriginalFile("error.txt");
-        verify(fileManagementService).moveToSuccessDirectory(mockFile);
-        verify(documentProcessor).removeTrackedFile("error.txt");
+        verify(fileOperations).moveFile(any(File.class), eq("output"), eq(false));
+        assertTrue(exitStatus.getExitDescription().contains("File processed successfully but could not be moved"));
     }
     
     @Test
@@ -145,8 +165,7 @@ class DocumentWriterTest {
         
         // Then
         verifyNoInteractions(documentRepository);
-        verifyNoInteractions(documentProcessor);
-        verifyNoInteractions(fileManagementService);
+        verifyNoInteractions(fileOperations);
     }
     
     private Document createTestDocument(String filename, String content) {
@@ -155,8 +174,18 @@ class DocumentWriterTest {
         document.setContent(content);
         document.setFileSize((long) content.length());
         document.setLastModified(Instant.now());
-        document.setStatus("PROCESSED");
+        document.setStatus(DocumentStatus.PROCESSED);
         document.setEmbedding(new float[] {0.1f, 0.2f, 0.3f});
+        
+        // Add metadata
+        DocumentMetadata metadata = DocumentMetadata.builder()
+                .originalFilename(filename)
+                .processingTime(Instant.now())
+                .processorName("TestProcessor")
+                .processorVersion("1.0.0")
+                .build();
+        document.setMetadata(metadata);
+        
         return document;
     }
 }
