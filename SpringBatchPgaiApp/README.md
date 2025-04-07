@@ -25,6 +25,9 @@ spring:
     url: jdbc:postgresql://localhost:5432/vectordb
     username: postgres
     password: my_pwd
+    jpa:
+      properties:
+        hibernate.jdbc.time_zone: UTC
 ```
 // to load the squad dataset from huggingface
 SELECT ai.load_dataset('squad');
@@ -94,6 +97,10 @@ mvn spring-boot:run
 - Automatic update of modified documents
 - Post-processing file movement with success/failure handling
 - Timestamp-based file renaming to prevent conflicts
+- Document status tracking using enum (NEW, PROCESSED, FAILED)
+- Rich document metadata support with JSON serialization
+- Proper handling of timestamps with UTC timezone
+- Optimized PostgreSQL array handling for embeddings
 
 ## Architecture
 
@@ -104,16 +111,27 @@ mvn spring-boot:run
 - **DocumentProcessor**: Processes each document and prepares it for storage
 - **DocumentReader**: Reads a single file specified by job parameters
 - **DocumentWriter**: Writes processed documents to the database and moves processed files based on job success/failure
+- **DocumentStatus**: Enum for tracking document processing state
+- **DocumentMetadata**: Stores structured metadata about each document
 
 ### Processing Flow
 
 1. FileWatcherService polls the input directory at configured intervals
 2. For each file, a separate Spring Batch job is launched with the filename as a parameter
 3. DocumentReader reads the specified file
-4. DocumentProcessor processes the file content
-5. DocumentWriter stores the document in the database
+4. DocumentProcessor processes the file content and populates metadata
+5. DocumentWriter stores the document in the database with appropriate status
 6. After processing:
-   - If successful: the file is moved to the output directory
-   - If failed: the file is moved to the failed directory
+   - If successful: the file is moved to the output directory and document status is set to PROCESSED
+   - If failed: the file is moved to the failed directory and document status is set to FAILED
+
+### Data Model
+
+- **Document**: Main entity with fields for content, status, and metadata
+  - Uses DocumentStatus enum for status tracking
+  - Stores structured metadata as JSON in a JSONB column
+  - Properly handles Java 8 date/time types with Jackson JSR310 module
+  - Uses PostgreSQL TIMESTAMP WITH TIME ZONE for consistent timestamp handling
+  - Uses proper REAL[] type for embeddings array
 
 This architecture ensures that each file is processed independently, providing better isolation and error handling. Moving processed files prevents duplicate processing and maintains a clean workflow.
