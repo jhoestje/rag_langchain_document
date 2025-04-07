@@ -1,6 +1,6 @@
 # Document Processing with pgAI and Spring Batch
 
-This project implements a document processing system that watches a directory for new or modified files, processes them using pgAI, and stores their embeddings in a PostgreSQL vector database.
+This project implements a document processing system that watches a directory for new or modified files, processes them using pgAI, and stores their embeddings in a PostgreSQL vector database. It includes robust file management with success/failure handling and document metadata tracking.
 
 ## Prerequisites
 
@@ -27,12 +27,15 @@ spring:
     password: my_pwd
 ```
 
-4. Configure the input directory in application.yml:
+4. Configure the directories in application.yml:
 ```yaml
 document:
   input:
     directory: c:/data/documents
     polling-interval: 5000  # milliseconds
+  output:
+    directory: c:/data/processed
+    failed-directory: c:/data/failed
 ```
 
 ## Building and Running
@@ -55,6 +58,8 @@ mvn spring-boot:run
    - Process them using pgAI
    - Generate embeddings
    - Store them in PostgreSQL with vector search capabilities
+   - Move successfully processed files to the output directory
+   - Move failed files to the failed directory with appropriate status tracking
 
 ## Features
 
@@ -63,6 +68,9 @@ mvn spring-boot:run
 - Vector similarity search support
 - Batch processing with Spring Batch
 - Automatic update of modified documents
+- File management with success/failure handling
+- Document status tracking (NEW, PROCESSED, FAILED)
+- Structured document metadata storage using JSON
 
 ## Vector Embedding Storage
 
@@ -76,7 +84,9 @@ The application implements best practices for storing and retrieving embeddings 
   CREATE INDEX IF NOT EXISTS documents_embedding_idx ON documents 
   USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
   ```
-- Stores document metadata alongside embeddings for better context
+- Stores document metadata as JSONB alongside embeddings for better context
+- Uses proper timestamp with timezone for consistent date handling
+- Tracks document status using an enumerated type
 
 ### LangChain4j Integration
 
@@ -103,7 +113,9 @@ The application follows a modular architecture:
 1. **File Detection**: Monitors input directory for new/modified files
 2. **Document Processing**: Extracts content and generates embeddings
 3. **Vector Storage**: Stores embeddings in PostgreSQL using pgvector
-4. **Semantic Search**: Enables similarity search across document collection
+4. **File Management**: Moves processed files to appropriate directories based on status
+5. **Metadata Tracking**: Captures processing details in structured JSON format
+6. **Semantic Search**: Enables similarity search across document collection
 
 ## Future Enhancements
 
