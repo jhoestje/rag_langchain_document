@@ -14,6 +14,7 @@ import org.springframework.batch.core.launch.JobLauncher;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import com.johoco.springbatchpgaiapp.util.FileOperations;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,22 +30,30 @@ class FileWatcherServiceTest {
     private Job processDocumentJob;
     
     @Mock
-    private FileManagementService fileManagementService;
+    private FileOperations fileOperations;
     
     private FileWatcherService fileWatcherService;
+    
+    private String failedDirectory = "failed";
     
     @TempDir
     Path tempDir;
     
     @BeforeEach
-    void setUp() {
+    void setUp() throws NoSuchFieldException, IllegalAccessException {
         MockitoAnnotations.openMocks(this);
-        fileWatcherService = new FileWatcherService(
-                jobLauncher,
-                processDocumentJob,
-                fileManagementService,
-                tempDir.toString()
-        );
+        // Using reflection to set the fields since we can't use constructor with all fields
+        fileWatcherService = new FileWatcherService(jobLauncher, processDocumentJob, fileOperations);
+        
+        // Use reflection to set the inputDirectory field
+        java.lang.reflect.Field field = FileWatcherService.class.getDeclaredField("inputDirectory");
+        field.setAccessible(true);
+        field.set(fileWatcherService, tempDir.toString());
+        
+        // Use reflection to set the failedDirectory field for testing
+        field = FileWatcherService.class.getDeclaredField("failedDirectory");
+        field.setAccessible(true);
+        field.set(fileWatcherService, failedDirectory);
     }
     
     @Test
@@ -56,7 +65,7 @@ class FileWatcherServiceTest {
         
         // Then
         verifyNoInteractions(jobLauncher);
-        verifyNoInteractions(fileManagementService);
+        verifyNoInteractions(fileOperations);
     }
     
     @Test
@@ -74,7 +83,7 @@ class FileWatcherServiceTest {
         
         // Then
         verify(jobLauncher, times(1)).run(eq(processDocumentJob), any(JobParameters.class));
-        verifyNoMoreInteractions(fileManagementService); // File should be moved by DocumentWriter
+        verifyNoMoreInteractions(fileOperations); // File should be moved by DocumentWriter
     }
     
     @Test
@@ -92,7 +101,7 @@ class FileWatcherServiceTest {
         
         // Then
         verify(jobLauncher, times(1)).run(eq(processDocumentJob), any(JobParameters.class));
-        verify(fileManagementService, times(1)).moveToFailureDirectory(any(File.class));
+        verify(fileOperations, times(1)).moveToFailed(any(File.class), eq(failedDirectory));
     }
     
     @Test
@@ -109,7 +118,7 @@ class FileWatcherServiceTest {
         
         // Then
         verify(jobLauncher, times(1)).run(eq(processDocumentJob), any(JobParameters.class));
-        verify(fileManagementService, times(1)).moveToFailureDirectory(any(File.class));
+        verify(fileOperations, times(1)).moveToFailed(any(File.class), eq(failedDirectory));
     }
     
     @Test
@@ -129,25 +138,35 @@ class FileWatcherServiceTest {
         
         // Then
         verify(jobLauncher, times(2)).run(eq(processDocumentJob), any(JobParameters.class));
-        verifyNoMoreInteractions(fileManagementService);
+        verifyNoMoreInteractions(fileOperations);
     }
     
     @Test
     void testWatchNonExistentDirectory() throws Exception {
         // Given
-        FileWatcherService service = new FileWatcherService(
-                jobLauncher,
-                processDocumentJob,
-                fileManagementService,
-                tempDir.resolve("nonexistent").toString()
-        );
+        // Create a new service instance with a non-existent directory
+        FileWatcherService service = new FileWatcherService(jobLauncher, processDocumentJob, fileOperations);
+        
+        try {
+            // Use reflection to set the inputDirectory field
+            java.lang.reflect.Field field = FileWatcherService.class.getDeclaredField("inputDirectory");
+            field.setAccessible(true);
+            field.set(service, tempDir.resolve("nonexistent").toString());
+            
+            // Use reflection to set the failedDirectory field for testing
+            field = FileWatcherService.class.getDeclaredField("failedDirectory");
+            field.setAccessible(true);
+            field.set(service, failedDirectory);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException("Error setting up test", e);
+        }
         
         // When
         service.watchDirectory();
         
         // Then
         verifyNoInteractions(jobLauncher);
-        verifyNoInteractions(fileManagementService);
+        verifyNoInteractions(fileOperations);
         
         // Directory should be created
         assertTrue(Files.exists(tempDir.resolve("nonexistent")));

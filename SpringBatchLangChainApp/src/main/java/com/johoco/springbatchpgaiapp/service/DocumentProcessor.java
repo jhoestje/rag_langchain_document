@@ -34,10 +34,10 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
     @Value("${spring.application.version:1.0.0}")
     private String applicationVersion;
 
-    public DocumentProcessor(EmbeddingModel embeddingModel, EmbeddingStore<TextSegment> embeddingStore, FileManagementService fileManagementService, FileOperations fileOperations) {   
-        this.embeddingModel = embeddingModel;
+    public DocumentProcessor(EmbeddingStore<TextSegment> embeddingStore, FileOperations fileOperations) {   
+        // this.embeddingModel = embeddingModel;
+        this.embeddingModel = new AllMiniLmL6V2EmbeddingModel();
         this.embeddingStore = embeddingStore;
-        // this.fileManagementService = fileManagementService;
         this.fileOperations = fileOperations;
     }
 

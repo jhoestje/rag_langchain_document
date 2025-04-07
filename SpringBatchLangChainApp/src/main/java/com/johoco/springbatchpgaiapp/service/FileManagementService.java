@@ -13,20 +13,20 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
 @Slf4j
-@Service
+// @Service
 public class FileManagementService {
     
-    private final String successDir;
-    private final String failureDir;
+    private String successDir;
+    private String failureDir;
     
-    public FileManagementService(
-            @Value("${document.success.directory}") String successDir,
-            @Value("${document.failure.directory}") String failureDir) {
-        this.successDir = successDir;
-        this.failureDir = failureDir;
-        log.info("FileManagementService constructed with success directory: {} and failure directory: {}", 
-                successDir, failureDir);
-    }
+    // public FileManagementService(
+    //         @Value("${document.success.directory}") String successDir,
+    //         @Value("${document.failure.directory}") String failureDir) {
+    //     this.successDir = successDir;
+    //     this.failureDir = failureDir;
+    //     log.info("FileManagementService constructed with success directory: {} and failure directory: {}", 
+    //             successDir, failureDir);
+    // }
     
     @PostConstruct
     public void init() {

@@ -2,8 +2,8 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/langchaindatabase?stringtype=unspecified
     username: postgres
-   # password: my_pwd
-    password: postgres
+    password: my_pwd
+   # password: postgres
     driver-class-name: org.postgresql.Driver
     hikari:
       isolation-level: TRANSACTION_READ_COMMITTED
