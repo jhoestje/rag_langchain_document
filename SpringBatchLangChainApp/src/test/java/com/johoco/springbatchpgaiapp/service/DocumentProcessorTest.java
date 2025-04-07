@@ -1,6 +1,9 @@
 package com.johoco.springbatchpgaiapp.service;
 
 import com.johoco.springbatchpgaiapp.model.Document;
+import com.johoco.springbatchpgaiapp.model.DocumentMetadata;
+import com.johoco.springbatchpgaiapp.model.DocumentStatus;
+import com.johoco.springbatchpgaiapp.util.FileOperations;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import org.junit.jupiter.api.BeforeEach;
@@ -8,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -23,7 +27,7 @@ class DocumentProcessorTest {
     private EmbeddingStore<TextSegment> embeddingStore;
     
     @Mock
-    private FileManagementService fileManagementService;
+    private FileOperations fileOperations;
     
     private DocumentProcessor documentProcessor;
     
@@ -33,7 +37,11 @@ class DocumentProcessorTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        documentProcessor = new DocumentProcessor(embeddingStore, fileManagementService);
+        documentProcessor = new DocumentProcessor(embeddingStore, fileOperations);
+        
+        // Set application name and version via reflection
+        ReflectionTestUtils.setField(documentProcessor, "applicationName", "test-app");
+        ReflectionTestUtils.setField(documentProcessor, "applicationVersion", "1.0.0");
     }
     
     @Test
@@ -53,11 +61,19 @@ class DocumentProcessorTest {
         assertEquals(content, result.getContent(), "Content should match");
         assertEquals(content.length(), result.getFileSize(), "File size should match content length");
         assertNotNull(result.getLastModified(), "Last modified date should be set");
-        assertEquals("PROCESSED", result.getStatus(), "Status should be PROCESSED");
+        assertEquals(DocumentStatus.PROCESSED, result.getStatus(), "Status should be PROCESSED");
         assertNotNull(result.getEmbedding(), "Embedding should not be null");
         
         // Verify embedding store was called
         verify(embeddingStore, times(1)).add(any(), any(TextSegment.class));
+        
+        // Verify metadata was set
+        assertNotNull(result.getMetadata(), "Metadata should not be null");
+        DocumentMetadata metadata = result.getMetadata();
+        assertEquals("test.txt", metadata.getOriginalFilename(), "Original filename should be set in metadata");
+        assertNotNull(metadata.getProcessingTime(), "Processing time should be set");
+        assertEquals("test-app", metadata.getProcessorName(), "Processor name should be set");
+        assertEquals("1.0.0", metadata.getProcessorVersion(), "Processor version should be set");
     }
     
     @Test
@@ -77,41 +93,17 @@ class DocumentProcessorTest {
         Files.writeString(testFile, "");
         File file = testFile.toFile();
         
-        when(fileManagementService.moveToFailureDirectory(any(File.class))).thenReturn(true);
+        when(fileOperations.readFileContent(any(File.class))).thenReturn("");
         
         // When
         Document result = documentProcessor.process(file);
         
         // Then
         assertNull(result, "Result should be null for empty file");
-        verify(fileManagementService).moveToFailureDirectory(file);
+        verify(fileOperations).readFileContent(file);
         verifyNoInteractions(embeddingStore);
     }
     
-    @Test
-    void testGetAndRemoveTrackedFile() throws Exception {
-        // Given
-        String content = "This is a test document for processing";
-        Path testFile = tempDir.resolve("tracked.txt");
-        Files.writeString(testFile, content);
-        File file = testFile.toFile();
-        
-        // Process the file to track it
-        Document result = documentProcessor.process(file);
-        assertNotNull(result);
-        
-        // When - get the tracked file
-        File trackedFile = documentProcessor.getOriginalFile("tracked.txt");
-        
-        // Then
-        assertNotNull(trackedFile, "Should return the tracked file");
-        assertEquals(file.getAbsolutePath(), trackedFile.getAbsolutePath(), "Should return the correct file");
-        
-        // When - remove the tracked file
-        documentProcessor.removeTrackedFile("tracked.txt");
-        
-        // Then
-        assertNull(documentProcessor.getOriginalFile("tracked.txt"), 
-                "Should return null after removing the tracked file");
-    }
+    // Note: The file tracking functionality has been moved out of DocumentProcessor
+    // as part of the refactoring to create the FileOperations class
 }
