@@ -89,6 +89,7 @@ public class DocumentWriter implements ItemWriter<Document> {
                     existing.setFileSize(document.getFileSize());
                     existing.setLastModified(document.getLastModified());
                     existing.setStatus(document.getStatus());
+                    existing.setMetadata(document.getMetadata());
                     savedDocument = documentRepository.save(existing);
                     log.info("Successfully updated document: {} with id: {}", savedDocument.getFilename(), savedDocument.getId());
                 } else {
