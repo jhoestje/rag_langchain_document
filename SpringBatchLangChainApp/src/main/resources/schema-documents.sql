@@ -1,8 +1,4 @@
--- Create documents table with proper vector support for embeddings
--- Enable pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Drop existing table if exists
+-- Create documents table with proper array support for embeddings
 DROP TABLE IF EXISTS documents;
 
 CREATE TABLE IF NOT EXISTS documents (
@@ -13,6 +9,7 @@ CREATE TABLE IF NOT EXISTS documents (
     file_size BIGINT,
     last_modified TIMESTAMP WITH TIME ZONE,
     status VARCHAR(50) NOT NULL,
+    metadata JSONB,
     CONSTRAINT documents_filename_unique UNIQUE (filename)
 );
 

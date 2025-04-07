@@ -2,7 +2,8 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/langchaindatabase?stringtype=unspecified
     username: postgres
-    password: my_pwd
+   # password: my_pwd
+    password: postgres
     driver-class-name: org.postgresql.Driver
     hikari:
       isolation-level: TRANSACTION_READ_COMMITTED
@@ -48,8 +49,7 @@ logging:
 document:
   input:
     directory: C:/workspace/rag/langchain/poc/documents
-    polling-interval: 10000
-  success:
-    directory: C:/workspace/rag/langchain/poc/documents_done
-  failure:
-    directory: C:/workspace/rag/langchain/poc/documents_done/failed
+    polling-interval: 5000
+  output:
+    directory: C:/workspace/rag/langchain/poc/documents/processed
+    failed-directory: C:/workspace/rag/langchain/poc/documents/failed

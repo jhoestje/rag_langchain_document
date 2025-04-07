@@ -1,45 +1,44 @@
 package com.johoco.springbatchpgaiapp.service;
 
 import com.johoco.springbatchpgaiapp.model.Document;
-import dev.langchain4j.data.embedding.Embedding;
-import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.model.embedding.EmbeddingModel;
+import com.johoco.springbatchpgaiapp.model.DocumentMetadata;
+import com.johoco.springbatchpgaiapp.model.DocumentStatus;
+import com.johoco.springbatchpgaiapp.util.FileOperations;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.embedding.AllMiniLmL6V2EmbeddingModel;
+import dev.langchain4j.data.embedding.Embedding;
+
+import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @Service
 public class DocumentProcessor implements ItemProcessor<File, Document> {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final FileManagementService fileManagementService;
+    // private final FileManagementService fileManagementService;
+    private final FileOperations fileOperations;
     
-    // Map to track original files and their processing status
-    private final Map<String, File> processedFiles = new HashMap<>();
+    @Value("${spring.application.name:SpringBatchPgaiApp}")
+    private String applicationName;
+    
+    @Value("${spring.application.version:1.0.0}")
+    private String applicationVersion;
 
-    public DocumentProcessor(EmbeddingStore<TextSegment> embeddingStore, FileManagementService fileManagementService) {
-        this.embeddingModel = new AllMiniLmL6V2EmbeddingModel();
+    public DocumentProcessor(EmbeddingModel embeddingModel, EmbeddingStore<TextSegment> embeddingStore, FileManagementService fileManagementService, FileOperations fileOperations) {   
+        this.embeddingModel = embeddingModel;
         this.embeddingStore = embeddingStore;
-        this.fileManagementService = fileManagementService;
-        log.info("DocumentProcessor initialized with embeddingModel: {}", 
-                this.embeddingModel.getClass().getSimpleName());
-    }
-    
-    @PostConstruct
-    public void init() {
-        log.info("DocumentProcessor post-construction initialization complete");
+        // this.fileManagementService = fileManagementService;
+        this.fileOperations = fileOperations;
     }
 
     @Override
@@ -52,19 +51,18 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
         log.debug("Processing file: {}", file.getName());
         
         try {
-            String content = readFileContent(file);
+            String content = fileOperations.readFileContent(file);
             if (content == null || content.trim().isEmpty()) {
                 log.warn("File {} is empty", file.getName());
-                fileManagementService.moveToFailureDirectory(file);
                 return null;
             }
 
             Document document = new Document();
             document.setFilename(file.getName());
             document.setContent(content);
-            document.setFileSize(file.length());
-            document.setLastModified(Instant.ofEpochMilli(file.lastModified()));
-            document.setStatus("PROCESSING");
+            document.setFileSize(fileOperations.getFileSize(file));
+            document.setLastModified(Instant.ofEpochMilli(fileOperations.getLastModified(file)));
+            document.setStatus(DocumentStatus.NEW);
 
             try {
                 log.debug("Generating embedding for document: {}", file.getName());
@@ -78,8 +76,9 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
                     vectorArray[i] = embedding.vector()[i];
                 }
                 document.setEmbedding(vectorArray);
-                document.setStatus("PROCESSED");
-                
+                document.setStatus(DocumentStatus.PROCESSED);
+                // document.setEmbedding(embedding);
+
                 // Also store in the embedding store with metadata
                 try {
                     // Create a simple TextSegment with the content
@@ -93,58 +92,25 @@ public class DocumentProcessor implements ItemProcessor<File, Document> {
                 
                 log.info("Successfully generated embedding with {} dimensions for document: {}", 
                          vectorArray.length, file.getName());
-                
-                // Store the original file reference for later movement
-                processedFiles.put(document.getFilename(), file);
-                
             } catch (Exception e) {
-                log.error("Error generating embedding for document {}: {}", file.getName(), e.getMessage(), e);
-                document.setEmbedding(null);
-                document.setStatus("ERROR_EMBEDDING");
-                
-                // Move file to failure directory
-                fileManagementService.moveToFailureDirectory(file);
+                log.error("Error generating embedding for file {}: {}", file.getName(), e.getMessage(), e);
                 return null;
             }
+            
+            // Create and set metadata
+            DocumentMetadata metadata = DocumentMetadata.builder()
+                    .originalFilename(file.getName())
+                    .processingTime(Instant.now())
+                    .processorName(applicationName)
+                    .processorVersion(applicationVersion)
+                    .build();
+            document.setMetadata(metadata);
             
             log.info("Successfully processed document: {} with status: {}", document.getFilename(), document.getStatus());
             return document;
         } catch (IOException e) {
             log.error("Error processing file {}: {}", file.getName(), e.getMessage(), e);
-            // Move file to failure directory
-            fileManagementService.moveToFailureDirectory(file);
             throw new RuntimeException("Error processing file: " + file.getName(), e);
-        }
-    }
-    
-    /**
-     * Get the original file for a processed document
-     * 
-     * @param filename The document filename
-     * @return The original file or null if not found
-     */
-    public File getOriginalFile(String filename) {
-        return processedFiles.get(filename);
-    }
-    
-    /**
-     * Remove a file from the tracking map
-     * 
-     * @param filename The document filename
-     */
-    public void removeTrackedFile(String filename) {
-        processedFiles.remove(filename);
-    }
-
-    private String readFileContent(File file) throws IOException {
-        try {
-            log.debug("Reading content from file: {}", file.getName());
-            String content = Files.readString(file.toPath());
-            log.debug("Successfully read {} characters from file: {}", content.length(), file.getName());
-            return content;
-        } catch (IOException e) {
-            log.error("Error reading file {}: {}", file.getName(), e.getMessage(), e);
-            throw e;
         }
     }
 }

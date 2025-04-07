@@ -1,6 +1,9 @@
 package com.johoco.springbatchpgaiapp.batch;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.JobParameters;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.annotation.BeforeStep;
 import org.springframework.batch.item.ItemStreamException;
 import org.springframework.batch.item.ItemStreamReader;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,41 +14,53 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.LinkedList;
-import java.util.Queue;
 
 @Slf4j
 @Component
 public class DocumentReader implements ItemStreamReader<File> {
-    private final String inputDirectory;
-    private final Queue<File> filesToProcess;
-    private boolean initialized;
+    @Value("${document.input.directory}")
+    private String inputDirectory;
+    
+    private File fileToProcess;
+    private boolean fileProcessed;
+    private String fileName;
 
-    public DocumentReader(@Value("${document.input.directory}") String inputDirectory) {
-        this.inputDirectory = inputDirectory;
-        this.filesToProcess = new LinkedList<>();
-        this.initialized = false;
-        log.info("DocumentReader constructed with input directory: {}", inputDirectory);
+    public DocumentReader() {
+        log.info("DocumentReader constructed");
+    }
+    
+    @BeforeStep
+    public void beforeStep(StepExecution stepExecution) {
+        JobParameters jobParameters = stepExecution.getJobParameters();
+        this.fileName = jobParameters.getString("fileName");
+        log.info("DocumentReader initialized with fileName parameter: {}", fileName);
     }
 
     @Override
     public void open(ExecutionContext executionContext) throws ItemStreamException {
-        log.info("Opening DocumentReader...");
+        log.info("Opening DocumentReader for file: {}", fileName);
         try {
+            if (fileName == null || fileName.trim().isEmpty()) {
+                log.error("No fileName parameter provided");
+                throw new ItemStreamException("fileName parameter is required");
+            }
+            
             Path inputPath = Paths.get(inputDirectory);
             if (!Files.exists(inputPath)) {
                 log.info("Creating input directory: {}", inputDirectory);
                 Files.createDirectories(inputPath);
             }
             
-            filesToProcess.clear();
-            Files.list(inputPath)
-                .filter(Files::isRegularFile)
-                .map(Path::toFile)
-                .forEach(filesToProcess::offer);
+            Path filePath = inputPath.resolve(fileName);
+            if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
+                log.error("File does not exist or is not a regular file: {}", filePath);
+                throw new ItemStreamException("File not found: " + filePath);
+            }
             
-            log.info("DocumentReader opened successfully. Input directory: {}, Found {} files", inputDirectory, filesToProcess.size());
-            initialized = true;
+            fileToProcess = filePath.toFile();
+            fileProcessed = false;
+            
+            log.info("DocumentReader opened successfully for file: {}", fileToProcess.getName());
         } catch (Exception e) {
             log.error("Error initializing DocumentReader: {}", e.getMessage(), e);
             throw new ItemStreamException("Failed to initialize DocumentReader", e);
@@ -54,18 +69,19 @@ public class DocumentReader implements ItemStreamReader<File> {
 
     @Override
     public File read() throws Exception {
-        if (!initialized) {
+        if (fileToProcess == null) {
             log.error("DocumentReader not initialized! Call open() first.");
             throw new IllegalStateException("Reader must be opened before it can be read");
         }
         
-        File nextFile = filesToProcess.poll();
-        if (nextFile != null) {
-            log.debug("Reading file: {}", nextFile.getName());
-        } else {
-            log.debug("No more files to process");
+        if (fileProcessed) {
+            log.debug("File already processed: {}", fileToProcess.getName());
+            return null;
         }
-        return nextFile;
+        
+        log.debug("Reading file: {}", fileToProcess.getName());
+        fileProcessed = true;
+        return fileToProcess;
     }
 
     @Override
@@ -76,9 +92,7 @@ public class DocumentReader implements ItemStreamReader<File> {
     @Override
     public void close() throws ItemStreamException {
         log.info("Closing DocumentReader");
-        if (filesToProcess != null) {
-            filesToProcess.clear();
-        }
-        initialized = false;
+        fileToProcess = null;
+        fileProcessed = false;
     }
 }
