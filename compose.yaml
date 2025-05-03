@@ -94,7 +94,7 @@ services:
       - WEBUI_AUTH=false
       - WEBUI_ALLOW_REGISTRATION=true
       - WEBUI_ALLOW_REGISTRATION_DOMAINS=
-      - WEBUI_DEFAULT_MODELS=llama3,llama3.2-vision
+      - WEBUI_DEFAULT_MODELS=llama3
     networks:
       - ollama-network
     restart: always
