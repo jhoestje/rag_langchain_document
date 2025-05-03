@@ -14,18 +14,38 @@ services:
     image: timescale/pgai-vectorizer-worker:latest
     environment:
       PGAI_VECTORIZER_WORKER_DB_URL: postgres://postgres:postgres@db:5432/pgaidatabase
-      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_HOST: http://ollama-embedder:11436
     command: [ "--poll-interval", "5s" ]
     depends_on:
       - db
-      - ollama
+      - ollama-embedder
     networks:
       - ollama-network
-  ollama:
+  ollama-chat:
     image: ollama/ollama
     ports:
       - "11434:11434"
-    container_name: ollama
+    container_name: ollama-chat
+    volumes:
+      - ollama-chat:/root/.ollama
+    networks:
+      - ollama-network
+    # GPU support
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: ${OLLAMA_GPU_DRIVER-nvidia}
+              count: ${OLLAMA_GPU_COUNT-1}
+              capabilities:
+                - gpu      
+  ollama-embedder:
+    image: ollama/ollama
+    ports:
+      - "11436:11434"
+    container_name: ollama-embedder
+    volumes:
+      - ollama-embedder:/root/.ollama
     networks:
       - ollama-network
     # GPU support
@@ -46,8 +66,6 @@ services:
       - ollama-network
     volumes:
       - llama3-vision-data:/root/.ollama
-    depends_on:
-      - ollama
     command: ["ollama", "run", "llama3.2-vision"]
     # GPU support
     deploy:
@@ -62,18 +80,21 @@ services:
     image: ghcr.io/open-webui/open-webui:ollama
     container_name: open-webui
     volumes:
-      - ollama:/root/.ollama
+      - ollama-chat:/root/.ollama
       - open-webui:/app/backend/data
     depends_on:
-      - ollama
+      - ollama-chat
     ports:
       - 3000:8080
     environment:
-      - OLLAMA_API_BASE_URL=http://ollama:11434
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_API_BASE_URL=http://ollama-chat:11434
+      - OLLAMA_BASE_URL=http://ollama-chat:11434
+      - OLLAMA_API_KEY=
       - WEBUI_SECRET_KEY=
       - WEBUI_AUTH=false
       - WEBUI_ALLOW_REGISTRATION=true
+      - WEBUI_ALLOW_REGISTRATION_DOMAINS=
+      - WEBUI_DEFAULT_MODELS=llama3,llama3.2-vision
     networks:
       - ollama-network
     restart: always
@@ -90,7 +111,8 @@ volumes:
   data:
   llama3-vision-data:
   open-webui:
-  ollama:
+  ollama-embedder:
+  ollama-chat:
 
 networks:
   ollama-network:
