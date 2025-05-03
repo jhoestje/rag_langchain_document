@@ -21,6 +21,9 @@ public class FileOperations {
 
     /**
      * Reads content from a file.
+     * 
+     * Note: This method is kept for backward compatibility.
+     * For file type-specific processing, use the appropriate FileProcessor.
      *
      * @param file the file to read
      * @return the content of the file as a string
@@ -33,7 +36,7 @@ public class FileOperations {
         }
         
         try {
-            log.debug("Reading content from file: {}", file.getName());
+            log.debug("Reading content from file using default method: {}", file.getName());
             String content = Files.readString(file.toPath());
             log.debug("Successfully read {} characters from file: {}", content.length(), file.getName());
             return content;
