@@ -28,8 +28,12 @@ services:
     container_name: ollama-chat
     volumes:
       - ollama-chat:/root/.ollama
+      - ./ollama-entrypoint.sh:/ollama-entrypoint.sh
     networks:
       - ollama-network
+    entrypoint: ["/bin/sh", "/ollama-entrypoint.sh"]
+    # Make the entrypoint script executable
+    user: root
     # GPU support
     deploy:
       resources:
